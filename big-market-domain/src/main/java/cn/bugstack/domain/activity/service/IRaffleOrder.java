@@ -18,6 +18,7 @@ public interface IRaffleOrder {
      * @param skuRechargeEntity 活动商品充值实体对象
      * @return 活动ID
      */
+    // 这个方法接口类就是类似mvc模式中的service类 在这里定义方法
     String createSkuRechargeOrder(SkuRechargeEntity skuRechargeEntity);
 
 }
