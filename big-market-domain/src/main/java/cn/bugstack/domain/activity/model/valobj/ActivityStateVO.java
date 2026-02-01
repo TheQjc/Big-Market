@@ -4,9 +4,9 @@ import lombok.AllArgsConstructor;
 import lombok.Getter;
 
 /**
- * @author Fuzhengwei bugstack.cn @小傅哥
+ * @author Niudeyipi @TheQjc
  * @description 活动状态值对象
- * @create 2024-03-16 11:16
+ * @create 2026-02-01 17:44
  */
 @Getter
 @AllArgsConstructor
@@ -15,6 +15,6 @@ public enum ActivityStateVO {
     create("create", "创建");
 
     private final String code;
-    private final String desc;
 
+    private final String desc;
 }

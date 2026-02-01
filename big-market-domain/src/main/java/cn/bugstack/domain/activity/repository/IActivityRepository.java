@@ -6,9 +6,9 @@ import cn.bugstack.domain.activity.model.entity.ActivityEntity;
 import cn.bugstack.domain.activity.model.entity.ActivitySkuEntity;
 
 /**
- * @author Fuzhengwei bugstack.cn @小傅哥
+ * @author Niudeyipi @TheQjc
  * @description 活动仓储接口
- * @create 2024-03-16 10:31
+ * @create 2026-02-01 18:29
  */
 public interface IActivityRepository {
 

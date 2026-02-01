@@ -3,9 +3,9 @@ package cn.bugstack.domain.activity.service;
 import cn.bugstack.domain.activity.model.entity.SkuRechargeEntity;
 
 /**
- * @author Fuzhengwei bugstack.cn @小傅哥
- * @description 抽奖活动订单接口
- * @create 2024-03-16 08:38
+ * @author Niudeyipi @TheQjc
+ * @description 抽奖订单接口
+ * @create 2026-02-01 18:41
  */
 public interface IRaffleOrder {
 

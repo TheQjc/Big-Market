@@ -9,29 +9,20 @@ import lombok.NoArgsConstructor;
 import java.util.Date;
 
 /**
- * @author Fuzhengwei bugstack.cn @小傅哥
+ * @author Niudeyipi @TheQjc
  * @description 活动参与实体对象
- * @create 2024-03-16 09:02
+ * @create 2026-02-01 17:27
  */
 @Data
 @Builder
 @AllArgsConstructor
 @NoArgsConstructor
 public class ActivityOrderEntity {
-
-    /**
-     * 用户ID
-     */
+    /*用户id*/
     private String userId;
-
-    /**
-     * sku
-     */
+    /*sku*/
     private Long sku;
-
-    /**
-     * 活动ID
-     */
+    /*活动id*/
     private Long activityId;
 
     /**
@@ -43,40 +34,18 @@ public class ActivityOrderEntity {
      * 抽奖策略ID
      */
     private Long strategyId;
-
-    /**
-     * 订单ID
-     */
+    /*订单id*/
     private String orderId;
-
-    /**
-     * 下单时间
-     */
+    /*下单时间*/
     private Date orderTime;
-
-    /**
-     * 总次数
-     */
+    /*总次数*/
     private Integer totalCount;
-
-    /**
-     * 日次数
-     */
-    private Integer dayCount;
-
-    /**
-     * 月次数
-     */
+    /*月次数*/
     private Integer monthCount;
-
-    /**
-     * 订单状态
-     */
+    /*日次数*/
+    private Integer dayCount;
+    /*订单状态*/
     private OrderStateVO state;
-
-    /**
-     * 业务仿重ID - 外部透传的，确保幂等
-     */
+    /*业务防重id - 外部透传的、确保幂等*/
     private String outBusinessNo;
-
 }

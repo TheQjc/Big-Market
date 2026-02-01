@@ -6,34 +6,24 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 /**
- * @author Fuzhengwei bugstack.cn @小傅哥
+ * @author Niudeyipi @TheQjc
  * @description 活动次数实体对象
- * @create 2024-03-16 11:19
+ * @create 2026-02-01 17:19
  */
 @Data
 @Builder
 @AllArgsConstructor
 @NoArgsConstructor
 public class ActivityCountEntity {
-
-    /**
-     * 活动次数编号
-     */
+    /*活动次数编号*/
     private Long activityCountId;
 
-    /**
-     * 总次数
-     */
+    /*总次数*/
     private Integer totalCount;
 
-    /**
-     * 日次数
-     */
-    private Integer dayCount;
-
-    /**
-     * 月次数
-     */
+    /*月次数*/
     private Integer monthCount;
 
+    /*日次数*/
+    private Integer dayCount;
 }

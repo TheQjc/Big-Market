@@ -6,25 +6,23 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 /**
- * @author Fuzhengwei bugstack.cn @小傅哥
+ * @author Niudeyipi @TheQjc
  * @description 活动sku实体对象
- * @create 2024-03-16 10:29
+ * @create 2026-02-01 17:34
  */
 @Data
 @Builder
 @AllArgsConstructor
 @NoArgsConstructor
 public class ActivitySkuEntity {
-
-    /** 商品sku */
+    /*商品sku*/
     private Long sku;
-    /** 活动ID */
+    /*活动id*/
     private Long activityId;
-    /** 活动个人参数ID；在这个活动上，一个人可参与多少次活动（总、日、月） */
+    /*活动个人参与id;在这个活动上，一个人可以参与多少次活动（总、日、月）*/
     private Long activityCountId;
-    /** 库存总量 */
+    /*库存总量*/
     private Integer stockCount;
-    /** 剩余库存 */
+    /*库存剩余*/
     private Integer stockCountSurplus;
-
 }
