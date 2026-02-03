@@ -28,7 +28,7 @@ public class ActivityArmory implements IActivityArmory, IActivityDispatch {
     public boolean assembleActivitySku(Long sku) {
         // 预热活动sku库存
         ActivitySkuEntity activitySkuEntity = activityRepository.queryActivitySku(sku);
-        cacheActivitySkuStockCount(sku, activitySkuEntity.getStockCount());
+        cacheActivitySkuStockCount(sku, activitySkuEntity.getStockCountSurplus());
 
         // 这里提前查询一次 目的就是为了提前将数据放入缓存（第一次查询如果没有查到就会放入缓存）
 
