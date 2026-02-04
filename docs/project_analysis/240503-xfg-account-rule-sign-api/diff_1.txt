@@ -1,0 +1,1709 @@
+commit dc41c1d757023f434c0708669076e585e6adfe8b
+Author: 小傅哥 <184172133@qq.com>
+Date:   Fri May 3 16:38:55 2024 +0800
+
+    feat：营销服务 第24节：规则完善和应用接口实现
+
+diff --git a/big-market-api/src/main/java/cn/bugstack/trigger/api/IRaffleActivityService.java b/big-market-api/src/main/java/cn/bugstack/trigger/api/IRaffleActivityService.java
+index 013ddce..a66c51c 100644
+--- a/big-market-api/src/main/java/cn/bugstack/trigger/api/IRaffleActivityService.java
++++ b/big-market-api/src/main/java/cn/bugstack/trigger/api/IRaffleActivityService.java
+@@ -2,6 +2,8 @@ package cn.bugstack.trigger.api;
+ 
+ import cn.bugstack.trigger.api.dto.ActivityDrawRequestDTO;
+ import cn.bugstack.trigger.api.dto.ActivityDrawResponseDTO;
++import cn.bugstack.trigger.api.dto.UserActivityAccountRequestDTO;
++import cn.bugstack.trigger.api.dto.UserActivityAccountResponseDTO;
+ import cn.bugstack.types.model.Response;
+ import org.springframework.web.bind.annotation.RequestParam;
+ 
+@@ -36,4 +38,20 @@ public interface IRaffleActivityService {
+      */
+     Response<Boolean> calendarSignRebate(String userId);
+ 
++    /**
++     * 判断是否完成日历签到返利接口
++     *
++     * @param userId 用户ID
++     * @return 签到结果 true 已签到，false 未签到
++     */
++    Response<Boolean> isCalendarSignRebate(String userId);
++
++    /**
++     * 查询用户活动账户
++     *
++     * @param request 请求对象「活动ID、用户ID」
++     * @return 返回结果「总额度、月额度、日额度」
++     */
++    Response<UserActivityAccountResponseDTO> queryUserActivityAccount(UserActivityAccountRequestDTO request);
++
+ }
+diff --git a/big-market-api/src/main/java/cn/bugstack/trigger/api/IRaffleStrategyService.java b/big-market-api/src/main/java/cn/bugstack/trigger/api/IRaffleStrategyService.java
+index 2a27cfe..de59227 100644
+--- a/big-market-api/src/main/java/cn/bugstack/trigger/api/IRaffleStrategyService.java
++++ b/big-market-api/src/main/java/cn/bugstack/trigger/api/IRaffleStrategyService.java
+@@ -1,9 +1,6 @@
+ package cn.bugstack.trigger.api;
+ 
+-import cn.bugstack.trigger.api.dto.RaffleAwardListRequestDTO;
+-import cn.bugstack.trigger.api.dto.RaffleStrategyRequestDTO;
+-import cn.bugstack.trigger.api.dto.RaffleAwardListResponseDTO;
+-import cn.bugstack.trigger.api.dto.RaffleStrategyResponseDTO;
++import cn.bugstack.trigger.api.dto.*;
+ import cn.bugstack.types.model.Response;
+ 
+ import java.util.List;
+@@ -26,17 +23,25 @@ public interface IRaffleStrategyService {
+     /**
+      * 查询抽奖奖品列表配置
+      *
+-     * @param requestDTO 抽奖奖品列表查询请求参数
++     * @param request 抽奖奖品列表查询请求参数
+      * @return 奖品列表数据
+      */
+-    Response<List<RaffleAwardListResponseDTO>> queryRaffleAwardList(RaffleAwardListRequestDTO requestDTO);
++    Response<List<RaffleAwardListResponseDTO>> queryRaffleAwardList(RaffleAwardListRequestDTO request);
++
++    /**
++     * 查询抽奖策略权重规则，给用户展示出抽奖N次后必中奖奖品范围
++     *
++     * @param request 请求对象
++     * @return 权重奖品配置列表「这里会返回全部，前端可按需展示一条已达标的，或者一条要达标的」
++     */
++    Response<List<RaffleStrategyRuleWeightResponseDTO>> queryRaffleStrategyRuleWeight(RaffleStrategyRuleWeightRequestDTO request);
+ 
+     /**
+      * 随机抽奖接口
+      *
+-     * @param requestDTO 请求参数
++     * @param request 请求参数
+      * @return 抽奖结果
+      */
+-    Response<RaffleStrategyResponseDTO> randomRaffle(RaffleStrategyRequestDTO requestDTO);
++    Response<RaffleStrategyResponseDTO> randomRaffle(RaffleStrategyRequestDTO request);
+ 
+ }
+diff --git a/big-market-api/src/main/java/cn/bugstack/trigger/api/dto/RaffleStrategyRuleWeightRequestDTO.java b/big-market-api/src/main/java/cn/bugstack/trigger/api/dto/RaffleStrategyRuleWeightRequestDTO.java
+new file mode 100644
+index 0000000..a3b47d2
+--- /dev/null
++++ b/big-market-api/src/main/java/cn/bugstack/trigger/api/dto/RaffleStrategyRuleWeightRequestDTO.java
+@@ -0,0 +1,18 @@
++package cn.bugstack.trigger.api.dto;
++
++import lombok.Data;
++
++/**
++ * @author Fuzhengwei bugstack.cn @小傅哥
++ * @description 抽奖策略规则，权重配置，查询N次抽奖可解锁奖品范围，请求对象
++ * @create 2024-05-03 09:35
++ */
++@Data
++public class RaffleStrategyRuleWeightRequestDTO {
++
++    // 用户ID
++    private String userId;
++    // 抽奖活动ID
++    private Long activityId;
++
++}
+diff --git a/big-market-api/src/main/java/cn/bugstack/trigger/api/dto/RaffleStrategyRuleWeightResponseDTO.java b/big-market-api/src/main/java/cn/bugstack/trigger/api/dto/RaffleStrategyRuleWeightResponseDTO.java
+new file mode 100644
+index 0000000..7941151
+--- /dev/null
++++ b/big-market-api/src/main/java/cn/bugstack/trigger/api/dto/RaffleStrategyRuleWeightResponseDTO.java
+@@ -0,0 +1,30 @@
++package cn.bugstack.trigger.api.dto;
++
++import lombok.Data;
++
++import java.util.List;
++
++/**
++ * @author Fuzhengwei bugstack.cn @小傅哥
++ * @description 抽奖策略规则，权重配置，查询N次抽奖可解锁奖品范围，应答对象
++ * @create 2024-05-03 09:35
++ */
++@Data
++public class RaffleStrategyRuleWeightResponseDTO {
++
++    // 权重规则配置的抽奖次数
++    private Integer ruleWeightCount;
++    // 用户在一个活动下完成的总抽奖次数
++    private Integer userActivityAccountTotalUseCount;
++    // 当前权重可抽奖范围
++    private List<StrategyAward> strategyAwards;
++
++    @Data
++    public static class StrategyAward {
++        // 奖品ID
++        private Integer awardId;
++        // 奖品标题
++        private String awardTitle;
++    }
++
++}
+diff --git a/big-market-api/src/main/java/cn/bugstack/trigger/api/dto/UserActivityAccountRequestDTO.java b/big-market-api/src/main/java/cn/bugstack/trigger/api/dto/UserActivityAccountRequestDTO.java
+new file mode 100644
+index 0000000..cf64710
+--- /dev/null
++++ b/big-market-api/src/main/java/cn/bugstack/trigger/api/dto/UserActivityAccountRequestDTO.java
+@@ -0,0 +1,23 @@
++package cn.bugstack.trigger.api.dto;
++
++import lombok.Data;
++
++/**
++ * @author Fuzhengwei bugstack.cn @小傅哥
++ * @description 用户活动账户请求对象
++ * @create 2024-05-03 07:17
++ */
++@Data
++public class UserActivityAccountRequestDTO {
++
++    /**
++     * 用户ID
++     */
++    private String userId;
++
++    /**
++     * 活动ID
++     */
++    private Long activityId;
++
++}
+diff --git a/big-market-api/src/main/java/cn/bugstack/trigger/api/dto/UserActivityAccountResponseDTO.java b/big-market-api/src/main/java/cn/bugstack/trigger/api/dto/UserActivityAccountResponseDTO.java
+new file mode 100644
+index 0000000..70c2695
+--- /dev/null
++++ b/big-market-api/src/main/java/cn/bugstack/trigger/api/dto/UserActivityAccountResponseDTO.java
+@@ -0,0 +1,49 @@
++package cn.bugstack.trigger.api.dto;
++
++import lombok.AllArgsConstructor;
++import lombok.Builder;
++import lombok.Data;
++import lombok.NoArgsConstructor;
++
++/**
++ * @author Fuzhengwei bugstack.cn @小傅哥
++ * @description 用户活动账户应答对象
++ * @create 2024-05-03 07:18
++ */
++@Data
++@Builder
++@AllArgsConstructor
++@NoArgsConstructor
++public class UserActivityAccountResponseDTO {
++
++    /**
++     * 总次数
++     */
++    private Integer totalCount;
++
++    /**
++     * 总次数-剩余
++     */
++    private Integer totalCountSurplus;
++
++    /**
++     * 日次数
++     */
++    private Integer dayCount;
++
++    /**
++     * 日次数-剩余
++     */
++    private Integer dayCountSurplus;
++
++    /**
++     * 月次数
++     */
++    private Integer monthCount;
++
++    /**
++     * 月次数-剩余
++     */
++    private Integer monthCountSurplus;
++
++}
+diff --git a/big-market-app/src/main/resources/mybatis/mapper/user_behavior_rebate_order_mapper.xml b/big-market-app/src/main/resources/mybatis/mapper/user_behavior_rebate_order_mapper.xml
+index 0f797c4..6022633 100644
+--- a/big-market-app/src/main/resources/mybatis/mapper/user_behavior_rebate_order_mapper.xml
++++ b/big-market-app/src/main/resources/mybatis/mapper/user_behavior_rebate_order_mapper.xml
+@@ -10,6 +10,7 @@
+         <result column="rebate_desc" property="rebateDesc"/>
+         <result column="rebate_type" property="rebateType"/>
+         <result column="rebate_config" property="rebateConfig"/>
++        <result column="out_business_no" property="outBusinessNo"/>
+         <result column="biz_id" property="bizId"/>
+         <result column="create_time" property="createTime"/>
+         <result column="update_time" property="updateTime"/>
+@@ -17,10 +18,16 @@
+ 
+     <insert id="insert" parameterType="cn.bugstack.infrastructure.persistent.po.UserBehaviorRebateOrder">
+         insert into user_behavior_rebate_order(
+-        user_id, order_id, behavior_type, rebate_desc, rebate_type, rebate_config, biz_id, create_time, update_time
++        user_id, order_id, behavior_type, rebate_desc, rebate_type, rebate_config, out_business_no, biz_id, create_time, update_time
+         ) values(
+-        #{userId}, #{orderId}, #{behaviorType}, #{rebateDesc}, #{rebateType}, #{rebateConfig}, #{bizId}, now(), now()
++        #{userId}, #{orderId}, #{behaviorType}, #{rebateDesc}, #{rebateType}, #{rebateConfig}, #{outBusinessNo}, #{bizId}, now(), now()
+         )
+     </insert>
+ 
++    <select id="queryOrderByOutBusinessNo" parameterType="cn.bugstack.infrastructure.persistent.po.UserBehaviorRebateOrder" resultMap="dataMap">
++        select user_id, order_id, behavior_type, rebate_desc, rebate_type, rebate_config, out_business_no, biz_id
++        from user_behavior_rebate_order
++        where user_id = #{userId} and out_business_no = #{outBusinessNo}
++    </select>
++
+ </mapper>
+\ No newline at end of file
+diff --git a/big-market-app/src/test/java/cn/bugstack/test/domain/rebate/BehaviorRebateServiceTest.java b/big-market-app/src/test/java/cn/bugstack/test/domain/rebate/BehaviorRebateServiceTest.java
+index 665873d..5651668 100644
+--- a/big-market-app/src/test/java/cn/bugstack/test/domain/rebate/BehaviorRebateServiceTest.java
++++ b/big-market-app/src/test/java/cn/bugstack/test/domain/rebate/BehaviorRebateServiceTest.java
+@@ -43,7 +43,7 @@ public class BehaviorRebateServiceTest {
+         behaviorEntity.setUserId("xiaofuge");
+         behaviorEntity.setBehaviorTypeVO(BehaviorTypeVO.SIGN);
+         // 重复的 OutBusinessNo 会报错唯一索引冲突，这也是保证幂等的手段，确保不会多记账
+-        behaviorEntity.setOutBusinessNo("2024042906");
++        behaviorEntity.setOutBusinessNo("20240503");
+ 
+         List<String> orderIds = behaviorRebateService.createOrder(behaviorEntity);
+         log.info("请求参数：{}", JSON.toJSONString(behaviorEntity));
+diff --git a/big-market-app/src/test/java/cn/bugstack/test/domain/strategy/RaffleStrategyTest.java b/big-market-app/src/test/java/cn/bugstack/test/domain/strategy/RaffleStrategyTest.java
+index 907fc29..bc1f6c5 100644
+--- a/big-market-app/src/test/java/cn/bugstack/test/domain/strategy/RaffleStrategyTest.java
++++ b/big-market-app/src/test/java/cn/bugstack/test/domain/strategy/RaffleStrategyTest.java
+@@ -2,7 +2,9 @@ package cn.bugstack.test.domain.strategy;
+ 
+ import cn.bugstack.domain.strategy.model.entity.RaffleAwardEntity;
+ import cn.bugstack.domain.strategy.model.entity.RaffleFactorEntity;
++import cn.bugstack.domain.strategy.model.valobj.RuleWeightVO;
+ import cn.bugstack.domain.strategy.model.valobj.StrategyAwardStockKeyVO;
++import cn.bugstack.domain.strategy.service.IRaffleRule;
+ import cn.bugstack.domain.strategy.service.IRaffleStock;
+ import cn.bugstack.domain.strategy.service.IRaffleStrategy;
+ import cn.bugstack.domain.strategy.service.armory.IStrategyArmory;
+@@ -21,6 +23,7 @@ import org.springframework.test.context.junit4.SpringRunner;
+ import org.springframework.test.util.ReflectionTestUtils;
+ 
+ import javax.annotation.Resource;
++import java.util.List;
+ import java.util.concurrent.CountDownLatch;
+ import java.util.concurrent.TimeUnit;
+ 
+@@ -42,9 +45,10 @@ public class RaffleStrategyTest {
+     private RuleWeightLogicChain ruleWeightLogicChain;
+     @Resource
+     private RuleLockLogicTreeNode ruleLockLogicTreeNode;
+-
+     @Resource
+     private IRaffleStock raffleStock;
++    @Resource
++    private IRaffleRule raffleRule;
+ 
+     @Before
+     public void setUp() {
+@@ -52,9 +56,9 @@ public class RaffleStrategyTest {
+         log.info("测试结果：{}", strategyArmory.assembleLotteryStrategy(100001L));
+         log.info("测试结果：{}", strategyArmory.assembleLotteryStrategy(100006L));
+ 
+-        // 通过反射 mock 规则中的值
+-        ReflectionTestUtils.setField(ruleWeightLogicChain, "userScore", 4900L);
+-        ReflectionTestUtils.setField(ruleLockLogicTreeNode, "userRaffleCount", 10L);
++        // 通过反射 mock 规则中的值；到本节不需要在使用了。
++        /*ReflectionTestUtils.setField(ruleWeightLogicChain, "userScore", 4900L);*/
++        /*ReflectionTestUtils.setField(ruleLockLogicTreeNode, "userRaffleCount", 10L);*/
+     }
+ 
+     @Test
+@@ -111,4 +115,10 @@ public class RaffleStrategyTest {
+         log.info("测试结果：{}", JSON.toJSONString(strategyAwardStockKeyVO));
+     }
+ 
++    @Test
++    public void test_raffleRule() {
++        List<RuleWeightVO> ruleWeightVOS = raffleRule.queryAwardRuleWeightByActivityId(100301L);
++        log.info("测试结果：{}", JSON.toJSONString(ruleWeightVOS));
++    }
++
+ }
+diff --git a/big-market-app/src/test/java/cn/bugstack/test/trigger/RaffleActivityControllerTest.java b/big-market-app/src/test/java/cn/bugstack/test/trigger/RaffleActivityControllerTest.java
+index 61c5b15..46e9103 100644
+--- a/big-market-app/src/test/java/cn/bugstack/test/trigger/RaffleActivityControllerTest.java
++++ b/big-market-app/src/test/java/cn/bugstack/test/trigger/RaffleActivityControllerTest.java
+@@ -3,6 +3,8 @@ package cn.bugstack.test.trigger;
+ import cn.bugstack.trigger.api.IRaffleActivityService;
+ import cn.bugstack.trigger.api.dto.ActivityDrawRequestDTO;
+ import cn.bugstack.trigger.api.dto.ActivityDrawResponseDTO;
++import cn.bugstack.trigger.api.dto.UserActivityAccountRequestDTO;
++import cn.bugstack.trigger.api.dto.UserActivityAccountResponseDTO;
+ import cn.bugstack.types.model.Response;
+ import com.alibaba.fastjson.JSON;
+ import lombok.extern.slf4j.Slf4j;
+@@ -34,7 +36,7 @@ public class RaffleActivityControllerTest {
+ 
+     @Test
+     public void test_draw() {
+-        for (int i = 0; i < 20; i++) {
++        for (int i = 0; i < 1; i++) {
+             ActivityDrawRequestDTO request = new ActivityDrawRequestDTO();
+             request.setActivityId(100301L);
+             request.setUserId("xiaofuge");
+@@ -46,9 +48,28 @@ public class RaffleActivityControllerTest {
+     }
+ 
+     @Test
+-    public void test_calendarSignRebate(){
++    public void test_calendarSignRebate() {
+         Response<Boolean> response = raffleActivityService.calendarSignRebate("xiaofuge");
+         log.info("测试结果：{}", JSON.toJSONString(response));
+     }
+ 
++    @Test
++    public void test_isCalendarSignRebate() {
++        Response<Boolean> response = raffleActivityService.isCalendarSignRebate("xiaofuge");
++        log.info("测试结果：{}", JSON.toJSONString(response));
++    }
++
++    @Test
++    public void test_queryUserActivityAccount() {
++        UserActivityAccountRequestDTO request = new UserActivityAccountRequestDTO();
++        request.setActivityId(100301L);
++        request.setUserId("xiaofuge");
++
++        // 查询数据
++        Response<UserActivityAccountResponseDTO> response = raffleActivityService.queryUserActivityAccount(request);
++
++        log.info("请求参数：{}", JSON.toJSONString(request));
++        log.info("测试结果：{}", JSON.toJSONString(response));
++    }
++
+ }
+diff --git a/big-market-app/src/test/java/cn/bugstack/test/trigger/RaffleStrategyControllerTest.java b/big-market-app/src/test/java/cn/bugstack/test/trigger/RaffleStrategyControllerTest.java
+index ee787c4..f22ff76 100644
+--- a/big-market-app/src/test/java/cn/bugstack/test/trigger/RaffleStrategyControllerTest.java
++++ b/big-market-app/src/test/java/cn/bugstack/test/trigger/RaffleStrategyControllerTest.java
+@@ -1,8 +1,7 @@
+ package cn.bugstack.test.trigger;
+ 
+ import cn.bugstack.trigger.api.IRaffleStrategyService;
+-import cn.bugstack.trigger.api.dto.RaffleAwardListRequestDTO;
+-import cn.bugstack.trigger.api.dto.RaffleAwardListResponseDTO;
++import cn.bugstack.trigger.api.dto.*;
+ import cn.bugstack.types.model.Response;
+ import com.alibaba.fastjson.JSON;
+ import lombok.extern.slf4j.Slf4j;
+@@ -38,4 +37,15 @@ public class RaffleStrategyControllerTest {
+         log.info("测试结果：{}", JSON.toJSONString(response));
+     }
+ 
++    @Test
++    public void test_queryRaffleStrategyRuleWeight() {
++        RaffleStrategyRuleWeightRequestDTO request = new RaffleStrategyRuleWeightRequestDTO();
++        request.setUserId("xiaofuge");
++        request.setActivityId(100301L);
++
++        Response<List<RaffleStrategyRuleWeightResponseDTO>> response = raffleStrategyService.queryRaffleStrategyRuleWeight(request);
++        log.info("请求参数：{}", JSON.toJSONString(request));
++        log.info("测试结果：{}", JSON.toJSONString(response));
++    }
++
+ }
+diff --git a/big-market-domain/src/main/java/cn/bugstack/domain/activity/repository/IActivityRepository.java b/big-market-domain/src/main/java/cn/bugstack/domain/activity/repository/IActivityRepository.java
+index 2d9ff8e..8e361ee 100644
+--- a/big-market-domain/src/main/java/cn/bugstack/domain/activity/repository/IActivityRepository.java
++++ b/big-market-domain/src/main/java/cn/bugstack/domain/activity/repository/IActivityRepository.java
+@@ -51,4 +51,8 @@ public interface IActivityRepository {
+ 
+     Integer queryRaffleActivityAccountDayPartakeCount(Long activityId, String userId);
+ 
++    ActivityAccountEntity queryActivityAccountEntity(Long activityId, String userId);
++
++    Integer queryRaffleActivityAccountPartakeCount(Long activityId, String userId);
++
+ }
+diff --git a/big-market-domain/src/main/java/cn/bugstack/domain/activity/service/IRaffleActivityAccountQuotaService.java b/big-market-domain/src/main/java/cn/bugstack/domain/activity/service/IRaffleActivityAccountQuotaService.java
+index cab88ad..2e58aac 100644
+--- a/big-market-domain/src/main/java/cn/bugstack/domain/activity/service/IRaffleActivityAccountQuotaService.java
++++ b/big-market-domain/src/main/java/cn/bugstack/domain/activity/service/IRaffleActivityAccountQuotaService.java
+@@ -1,5 +1,6 @@
+ package cn.bugstack.domain.activity.service;
+ 
++import cn.bugstack.domain.activity.model.entity.ActivityAccountEntity;
+ import cn.bugstack.domain.activity.model.entity.SkuRechargeEntity;
+ 
+ /**
+@@ -20,6 +21,15 @@ public interface IRaffleActivityAccountQuotaService {
+      */
+     String createOrder(SkuRechargeEntity skuRechargeEntity);
+ 
++    /**
++     * 查询活动账户 - 总，参与次数
++     *
++     * @param activityId 活动ID
++     * @param userId     用户ID
++     * @return 参与次数
++     */
++    Integer queryRaffleActivityAccountPartakeCount(Long activityId, String userId);
++
+     /**
+      * 查询活动账户 - 日，参与次数
+      *
+@@ -29,4 +39,13 @@ public interface IRaffleActivityAccountQuotaService {
+      */
+     Integer queryRaffleActivityAccountDayPartakeCount(Long activityId, String userId);
+ 
++    /**
++     * 查询活动账户额度「总、月、日」
++     *
++     * @param activityId 活动ID
++     * @param userId     用户ID
++     * @return 账户实体
++     */
++    ActivityAccountEntity queryActivityAccountEntity(Long activityId, String userId);
++
+ }
+diff --git a/big-market-domain/src/main/java/cn/bugstack/domain/activity/service/quota/RaffleActivityAccountQuotaService.java b/big-market-domain/src/main/java/cn/bugstack/domain/activity/service/quota/RaffleActivityAccountQuotaService.java
+index c6b7cc6..15310a8 100644
+--- a/big-market-domain/src/main/java/cn/bugstack/domain/activity/service/quota/RaffleActivityAccountQuotaService.java
++++ b/big-market-domain/src/main/java/cn/bugstack/domain/activity/service/quota/RaffleActivityAccountQuotaService.java
+@@ -78,9 +78,19 @@ public class RaffleActivityAccountQuotaService extends AbstractRaffleActivityAcc
+         activityRepository.clearActivitySkuStock(sku);
+     }
+ 
++    @Override
++    public Integer queryRaffleActivityAccountPartakeCount(Long activityId, String userId) {
++        return activityRepository.queryRaffleActivityAccountPartakeCount(activityId, userId);
++    }
++
+     @Override
+     public Integer queryRaffleActivityAccountDayPartakeCount(Long activityId, String userId) {
+         return activityRepository.queryRaffleActivityAccountDayPartakeCount(activityId, userId);
+     }
+ 
++    @Override
++    public ActivityAccountEntity queryActivityAccountEntity(Long activityId, String userId) {
++        return activityRepository.queryActivityAccountEntity(activityId, userId);
++    }
++
+ }
+diff --git a/big-market-domain/src/main/java/cn/bugstack/domain/rebate/model/entity/BehaviorRebateOrderEntity.java b/big-market-domain/src/main/java/cn/bugstack/domain/rebate/model/entity/BehaviorRebateOrderEntity.java
+index c55916b..199dd5a 100644
+--- a/big-market-domain/src/main/java/cn/bugstack/domain/rebate/model/entity/BehaviorRebateOrderEntity.java
++++ b/big-market-domain/src/main/java/cn/bugstack/domain/rebate/model/entity/BehaviorRebateOrderEntity.java
+@@ -28,6 +28,8 @@ public class BehaviorRebateOrderEntity {
+     private String rebateType;
+     /** 返利配置【sku值，积分值】 */
+     private String rebateConfig;
++    /** 业务仿重ID - 外部透传，方便查询使用 */
++    private String outBusinessNo;
+     /** 业务ID - 拼接的唯一值 */
+     private String bizId;
+ 
+diff --git a/big-market-domain/src/main/java/cn/bugstack/domain/rebate/repository/IBehaviorRebateRepository.java b/big-market-domain/src/main/java/cn/bugstack/domain/rebate/repository/IBehaviorRebateRepository.java
+index 5dddaf4..7c78c3a 100644
+--- a/big-market-domain/src/main/java/cn/bugstack/domain/rebate/repository/IBehaviorRebateRepository.java
++++ b/big-market-domain/src/main/java/cn/bugstack/domain/rebate/repository/IBehaviorRebateRepository.java
+@@ -1,6 +1,7 @@
+ package cn.bugstack.domain.rebate.repository;
+ 
+ import cn.bugstack.domain.rebate.model.aggregate.BehaviorRebateAggregate;
++import cn.bugstack.domain.rebate.model.entity.BehaviorRebateOrderEntity;
+ import cn.bugstack.domain.rebate.model.valobj.BehaviorTypeVO;
+ import cn.bugstack.domain.rebate.model.valobj.DailyBehaviorRebateVO;
+ 
+@@ -17,4 +18,6 @@ public interface IBehaviorRebateRepository {
+ 
+     void saveUserRebateRecord(String userId, List<BehaviorRebateAggregate> behaviorRebateAggregates);
+ 
++    List<BehaviorRebateOrderEntity> queryOrderByOutBusinessNo(String userId, String outBusinessNo);
++
+ }
+diff --git a/big-market-domain/src/main/java/cn/bugstack/domain/rebate/service/BehaviorRebateService.java b/big-market-domain/src/main/java/cn/bugstack/domain/rebate/service/BehaviorRebateService.java
+index 4d4fa27..aefb4e8 100644
+--- a/big-market-domain/src/main/java/cn/bugstack/domain/rebate/service/BehaviorRebateService.java
++++ b/big-market-domain/src/main/java/cn/bugstack/domain/rebate/service/BehaviorRebateService.java
+@@ -49,6 +49,7 @@ public class BehaviorRebateService implements IBehaviorRebateService {
+                     .rebateDesc(dailyBehaviorRebateVO.getRebateDesc())
+                     .rebateType(dailyBehaviorRebateVO.getRebateType())
+                     .rebateConfig(dailyBehaviorRebateVO.getRebateConfig())
++                    .outBusinessNo(behaviorEntity.getOutBusinessNo())
+                     .bizId(bizId)
+                     .build();
+             orderIds.add(behaviorRebateOrderEntity.getOrderId());
+@@ -88,4 +89,9 @@ public class BehaviorRebateService implements IBehaviorRebateService {
+         return orderIds;
+     }
+ 
++    @Override
++    public List<BehaviorRebateOrderEntity> queryOrderByOutBusinessNo(String userId, String outBusinessNo) {
++        return behaviorRebateRepository.queryOrderByOutBusinessNo(userId, outBusinessNo);
++    }
++
+ }
+diff --git a/big-market-domain/src/main/java/cn/bugstack/domain/rebate/service/IBehaviorRebateService.java b/big-market-domain/src/main/java/cn/bugstack/domain/rebate/service/IBehaviorRebateService.java
+index ca5c6b3..0347192 100644
+--- a/big-market-domain/src/main/java/cn/bugstack/domain/rebate/service/IBehaviorRebateService.java
++++ b/big-market-domain/src/main/java/cn/bugstack/domain/rebate/service/IBehaviorRebateService.java
+@@ -1,6 +1,7 @@
+ package cn.bugstack.domain.rebate.service;
+ 
+ import cn.bugstack.domain.rebate.model.entity.BehaviorEntity;
++import cn.bugstack.domain.rebate.model.entity.BehaviorRebateOrderEntity;
+ 
+ import java.util.List;
+ 
+@@ -19,4 +20,13 @@ public interface IBehaviorRebateService {
+      */
+     List<String> createOrder(BehaviorEntity behaviorEntity);
+ 
++    /**
++     * 根据外部单号查询订单
++     *
++     * @param userId        用户ID
++     * @param outBusinessNo 业务ID；签到则是日期字符串，支付则是外部的业务ID
++     * @return 返利订单实体
++     */
++    List<BehaviorRebateOrderEntity> queryOrderByOutBusinessNo(String userId, String outBusinessNo);
++
+ }
+diff --git a/big-market-domain/src/main/java/cn/bugstack/domain/strategy/model/valobj/RuleWeightVO.java b/big-market-domain/src/main/java/cn/bugstack/domain/strategy/model/valobj/RuleWeightVO.java
+new file mode 100644
+index 0000000..70a5182
+--- /dev/null
++++ b/big-market-domain/src/main/java/cn/bugstack/domain/strategy/model/valobj/RuleWeightVO.java
+@@ -0,0 +1,43 @@
++package cn.bugstack.domain.strategy.model.valobj;
++
++import cn.bugstack.types.common.Constants;
++import lombok.AllArgsConstructor;
++import lombok.Builder;
++import lombok.Getter;
++import lombok.NoArgsConstructor;
++
++import java.util.ArrayList;
++import java.util.HashMap;
++import java.util.List;
++import java.util.Map;
++
++/**
++ * @author Fuzhengwei bugstack.cn @小傅哥
++ * @description 权重规则值对象
++ * @create 2024-05-03 09:53
++ */
++@Getter
++@Builder
++@AllArgsConstructor
++@NoArgsConstructor
++public class RuleWeightVO {
++
++    // 原始规则值配置
++    private String ruleValue;
++    // 权重值
++    private Integer weight;
++    // 奖品配置
++    private List<Integer> awardIds;
++    // 奖品列表
++    private List<Award> awardList;
++
++    @Getter
++    @Builder
++    @AllArgsConstructor
++    @NoArgsConstructor
++    public static class Award {
++        private Integer awardId;
++        private String awardTitle;
++    }
++
++}
+diff --git a/big-market-domain/src/main/java/cn/bugstack/domain/strategy/repository/IStrategyRepository.java b/big-market-domain/src/main/java/cn/bugstack/domain/strategy/repository/IStrategyRepository.java
+index e55cf6c..616a595 100644
+--- a/big-market-domain/src/main/java/cn/bugstack/domain/strategy/repository/IStrategyRepository.java
++++ b/big-market-domain/src/main/java/cn/bugstack/domain/strategy/repository/IStrategyRepository.java
+@@ -4,6 +4,7 @@ import cn.bugstack.domain.strategy.model.entity.StrategyAwardEntity;
+ import cn.bugstack.domain.strategy.model.entity.StrategyEntity;
+ import cn.bugstack.domain.strategy.model.entity.StrategyRuleEntity;
+ import cn.bugstack.domain.strategy.model.valobj.RuleTreeVO;
++import cn.bugstack.domain.strategy.model.valobj.RuleWeightVO;
+ import cn.bugstack.domain.strategy.model.valobj.StrategyAwardRuleModelVO;
+ import cn.bugstack.domain.strategy.model.valobj.StrategyAwardStockKeyVO;
+ 
+@@ -65,7 +66,7 @@ public interface IStrategyRepository {
+     /**
+      * 缓存key，decr 方式扣减库存
+      *
+-     * @param cacheKey 缓存Key
++     * @param cacheKey    缓存Key
+      * @param endDateTime 活动结束时间
+      * @return 扣减结果
+      */
+@@ -125,4 +126,21 @@ public interface IStrategyRepository {
+      */
+     Map<String, Integer> queryAwardRuleLockCount(String[] treeIds);
+ 
++    /**
++     * 根据用户ID、策略ID，查询用户活动账户总使用量
++     *
++     * @param userId     用户ID
++     * @param strategyId 策略ID
++     * @return 使用总量
++     */
++    Integer queryActivityAccountTotalUseCount(String userId, Long strategyId);
++
++    /**
++     * 查询奖品权重配置
++     *
++     * @param strategyId 策略ID
++     * @return 权重规则
++     */
++    List<RuleWeightVO> queryAwardRuleWeight(Long strategyId);
++
+ }
+diff --git a/big-market-domain/src/main/java/cn/bugstack/domain/strategy/service/IRaffleRule.java b/big-market-domain/src/main/java/cn/bugstack/domain/strategy/service/IRaffleRule.java
+index b678426..9743862 100644
+--- a/big-market-domain/src/main/java/cn/bugstack/domain/strategy/service/IRaffleRule.java
++++ b/big-market-domain/src/main/java/cn/bugstack/domain/strategy/service/IRaffleRule.java
+@@ -1,5 +1,8 @@
+ package cn.bugstack.domain.strategy.service;
+ 
++import cn.bugstack.domain.strategy.model.valobj.RuleWeightVO;
++
++import java.util.List;
+ import java.util.Map;
+ 
+ /**
+@@ -17,4 +20,21 @@ public interface IRaffleRule {
+      */
+     Map<String, Integer> queryAwardRuleLockCount(String[] treeIds);
+ 
++    /**
++     * 查询奖品权重配置
++     *
++     * @param strategyId 策略ID
++     * @return 权重规则
++     */
++    List<RuleWeightVO> queryAwardRuleWeight(Long strategyId);
++
++
++    /**
++     * 查询奖品权重配置
++     *
++     * @param activityId 活动ID
++     * @return 权重规则
++     */
++    List<RuleWeightVO> queryAwardRuleWeightByActivityId(Long activityId);
++
+ }
+diff --git a/big-market-domain/src/main/java/cn/bugstack/domain/strategy/service/raffle/DefaultRaffleStrategy.java b/big-market-domain/src/main/java/cn/bugstack/domain/strategy/service/raffle/DefaultRaffleStrategy.java
+index 4f9cc82..b2eb4b0 100644
+--- a/big-market-domain/src/main/java/cn/bugstack/domain/strategy/service/raffle/DefaultRaffleStrategy.java
++++ b/big-market-domain/src/main/java/cn/bugstack/domain/strategy/service/raffle/DefaultRaffleStrategy.java
+@@ -2,6 +2,7 @@ package cn.bugstack.domain.strategy.service.raffle;
+ 
+ import cn.bugstack.domain.strategy.model.entity.StrategyAwardEntity;
+ import cn.bugstack.domain.strategy.model.valobj.RuleTreeVO;
++import cn.bugstack.domain.strategy.model.valobj.RuleWeightVO;
+ import cn.bugstack.domain.strategy.model.valobj.StrategyAwardRuleModelVO;
+ import cn.bugstack.domain.strategy.model.valobj.StrategyAwardStockKeyVO;
+ import cn.bugstack.domain.strategy.repository.IStrategyRepository;
+@@ -86,4 +87,15 @@ public class DefaultRaffleStrategy extends AbstractRaffleStrategy implements IRa
+         return repository.queryAwardRuleLockCount(treeIds);
+     }
+ 
++    @Override
++    public List<RuleWeightVO> queryAwardRuleWeight(Long strategyId) {
++        return repository.queryAwardRuleWeight(strategyId);
++    }
++
++    @Override
++    public List<RuleWeightVO> queryAwardRuleWeightByActivityId(Long activityId) {
++        Long strategyId = repository.queryStrategyIdByActivityId(activityId);
++        return queryAwardRuleWeight(strategyId);
++    }
++
+ }
+diff --git a/big-market-domain/src/main/java/cn/bugstack/domain/strategy/service/rule/chain/impl/RuleWeightLogicChain.java b/big-market-domain/src/main/java/cn/bugstack/domain/strategy/service/rule/chain/impl/RuleWeightLogicChain.java
+index 44f299c..b654949 100644
+--- a/big-market-domain/src/main/java/cn/bugstack/domain/strategy/service/rule/chain/impl/RuleWeightLogicChain.java
++++ b/big-market-domain/src/main/java/cn/bugstack/domain/strategy/service/rule/chain/impl/RuleWeightLogicChain.java
+@@ -29,9 +29,6 @@ public class RuleWeightLogicChain extends AbstractLogicChain {
+     @Resource
+     protected IStrategyDispatch strategyDispatch;
+ 
+-    // 根据用户ID查询用户抽奖消耗的积分值，本章节我们先写死为固定的值。后续需要从数据库中查询。
+-    public Long userScore = 0L;
+-
+     /**
+      * 权重责任链过滤；
+      * 1. 权重规则格式；4000:102,103,104,105 5000:102,103,104,105,106,107 6000:102,103,104,105,106,107,108,109
+@@ -68,6 +65,7 @@ public class RuleWeightLogicChain extends AbstractLogicChain {
+          *      .max(Comparator.naturalOrder())
+          *      .orElse(null);
+          */
++        Integer userScore = repository.queryActivityAccountTotalUseCount(userId, strategyId);
+         Long nextValue = analyticalSortedKeys.stream()
+                 .sorted(Comparator.reverseOrder())
+                 .filter(analyticalSortedKeyValue -> userScore >= analyticalSortedKeyValue)
+diff --git a/big-market-infrastructure/src/main/java/cn/bugstack/infrastructure/persistent/dao/IUserBehaviorRebateOrderDao.java b/big-market-infrastructure/src/main/java/cn/bugstack/infrastructure/persistent/dao/IUserBehaviorRebateOrderDao.java
+index 093d1bd..316220c 100644
+--- a/big-market-infrastructure/src/main/java/cn/bugstack/infrastructure/persistent/dao/IUserBehaviorRebateOrderDao.java
++++ b/big-market-infrastructure/src/main/java/cn/bugstack/infrastructure/persistent/dao/IUserBehaviorRebateOrderDao.java
+@@ -1,9 +1,12 @@
+ package cn.bugstack.infrastructure.persistent.dao;
+ 
+ import cn.bugstack.infrastructure.persistent.po.UserBehaviorRebateOrder;
++import cn.bugstack.middleware.db.router.annotation.DBRouter;
+ import cn.bugstack.middleware.db.router.annotation.DBRouterStrategy;
+ import org.apache.ibatis.annotations.Mapper;
+ 
++import java.util.List;
++
+ /**
+  * @author Fuzhengwei bugstack.cn @小傅哥
+  * @description 用户行为返利流水订单表
+@@ -15,4 +18,7 @@ public interface IUserBehaviorRebateOrderDao {
+ 
+     void insert(UserBehaviorRebateOrder userBehaviorRebateOrder);
+ 
++    @DBRouter
++    List<UserBehaviorRebateOrder> queryOrderByOutBusinessNo(UserBehaviorRebateOrder userBehaviorRebateOrderReq);
++
+ }
+diff --git a/big-market-infrastructure/src/main/java/cn/bugstack/infrastructure/persistent/po/UserBehaviorRebateOrder.java b/big-market-infrastructure/src/main/java/cn/bugstack/infrastructure/persistent/po/UserBehaviorRebateOrder.java
+index c20e881..b55a6f6 100644
+--- a/big-market-infrastructure/src/main/java/cn/bugstack/infrastructure/persistent/po/UserBehaviorRebateOrder.java
++++ b/big-market-infrastructure/src/main/java/cn/bugstack/infrastructure/persistent/po/UserBehaviorRebateOrder.java
+@@ -26,6 +26,8 @@ public class UserBehaviorRebateOrder {
+     private String rebateType;
+     /** 返利配置【sku值，积分值】 */
+     private String rebateConfig;
++    /** 业务仿重ID - 外部透传，方便查询使用 */
++    private String outBusinessNo;
+     /** 业务ID - 拼接的唯一值 */
+     private String bizId;
+     /** 创建时间 */
+diff --git a/big-market-infrastructure/src/main/java/cn/bugstack/infrastructure/persistent/repository/ActivityRepository.java b/big-market-infrastructure/src/main/java/cn/bugstack/infrastructure/persistent/repository/ActivityRepository.java
+index faf111b..4049e3a 100644
+--- a/big-market-infrastructure/src/main/java/cn/bugstack/infrastructure/persistent/repository/ActivityRepository.java
++++ b/big-market-infrastructure/src/main/java/cn/bugstack/infrastructure/persistent/repository/ActivityRepository.java
+@@ -486,4 +486,74 @@ public class ActivityRepository implements IActivityRepository {
+         return null == dayPartakeCount ? 0 : dayPartakeCount;
+     }
+ 
++    @Override
++    public ActivityAccountEntity queryActivityAccountEntity(Long activityId, String userId) {
++        // 1. 查询总账户额度
++        RaffleActivityAccount raffleActivityAccount = raffleActivityAccountDao.queryActivityAccountByUserId(RaffleActivityAccount.builder()
++                .activityId(activityId)
++                .userId(userId)
++                .build());
++
++        if (null == raffleActivityAccount) {
++            return ActivityAccountEntity.builder()
++                    .activityId(activityId)
++                    .userId(userId)
++                    .totalCount(0)
++                    .totalCountSurplus(0)
++                    .monthCount(0)
++                    .monthCountSurplus(0)
++                    .dayCount(0)
++                    .dayCountSurplus(0)
++                    .build();
++        }
++
++        // 2. 查询月账户额度
++        RaffleActivityAccountMonth raffleActivityAccountMonth = raffleActivityAccountMonthDao.queryActivityAccountMonthByUserId(RaffleActivityAccountMonth.builder()
++                .activityId(activityId)
++                .userId(userId)
++                .build());
++
++        // 3. 查询日账户额度
++        RaffleActivityAccountDay raffleActivityAccountDay = raffleActivityAccountDayDao.queryActivityAccountDayByUserId(RaffleActivityAccountDay.builder()
++                .activityId(activityId)
++                .userId(userId)
++                .build());
++
++        // 组装对象
++        ActivityAccountEntity activityAccountEntity = new ActivityAccountEntity();
++        activityAccountEntity.setUserId(userId);
++        activityAccountEntity.setActivityId(activityId);
++        activityAccountEntity.setTotalCount(raffleActivityAccount.getTotalCount());
++        activityAccountEntity.setTotalCountSurplus(raffleActivityAccount.getTotalCountSurplus());
++
++        // 如果没有创建日账户，则从总账户中获取日总额度填充。「当新创建日账户时，会获得总账户额度」
++        if (null == raffleActivityAccountDay) {
++            activityAccountEntity.setDayCount(raffleActivityAccount.getDayCount());
++            activityAccountEntity.setDayCountSurplus(raffleActivityAccount.getDayCount());
++        } else {
++            activityAccountEntity.setDayCount(raffleActivityAccountDay.getDayCount());
++            activityAccountEntity.setDayCountSurplus(raffleActivityAccountDay.getDayCountSurplus());
++        }
++
++        // 如果没有创建月账户，则从总账户中获取月总额度填充。「当新创建日账户时，会获得总账户额度」
++        if (null == raffleActivityAccountMonth) {
++            activityAccountEntity.setMonthCount(raffleActivityAccount.getMonthCount());
++            activityAccountEntity.setMonthCountSurplus(raffleActivityAccount.getMonthCount());
++        } else {
++            activityAccountEntity.setMonthCount(raffleActivityAccountMonth.getMonthCount());
++            activityAccountEntity.setMonthCountSurplus(raffleActivityAccountMonth.getMonthCountSurplus());
++        }
++
++        return activityAccountEntity;
++    }
++
++    @Override
++    public Integer queryRaffleActivityAccountPartakeCount(Long activityId, String userId) {
++        RaffleActivityAccount raffleActivityAccount = raffleActivityAccountDao.queryActivityAccountByUserId(RaffleActivityAccount.builder()
++                .activityId(activityId)
++                .userId(userId)
++                .build());
++        return raffleActivityAccount.getTotalCount() - raffleActivityAccount.getTotalCountSurplus();
++    }
++
+ }
+diff --git a/big-market-infrastructure/src/main/java/cn/bugstack/infrastructure/persistent/repository/BehaviorRebateRepository.java b/big-market-infrastructure/src/main/java/cn/bugstack/infrastructure/persistent/repository/BehaviorRebateRepository.java
+index dd8d9b5..ec71726 100644
+--- a/big-market-infrastructure/src/main/java/cn/bugstack/infrastructure/persistent/repository/BehaviorRebateRepository.java
++++ b/big-market-infrastructure/src/main/java/cn/bugstack/infrastructure/persistent/repository/BehaviorRebateRepository.java
+@@ -79,6 +79,7 @@ public class BehaviorRebateRepository implements IBehaviorRebateRepository {
+                         userBehaviorRebateOrder.setRebateDesc(behaviorRebateOrderEntity.getRebateDesc());
+                         userBehaviorRebateOrder.setRebateType(behaviorRebateOrderEntity.getRebateType());
+                         userBehaviorRebateOrder.setRebateConfig(behaviorRebateOrderEntity.getRebateConfig());
++                        userBehaviorRebateOrder.setOutBusinessNo(behaviorRebateOrderEntity.getOutBusinessNo());
+                         userBehaviorRebateOrder.setBizId(behaviorRebateOrderEntity.getBizId());
+                         userBehaviorRebateOrderDao.insert(userBehaviorRebateOrder);
+ 
+@@ -122,4 +123,29 @@ public class BehaviorRebateRepository implements IBehaviorRebateRepository {
+ 
+     }
+ 
++    @Override
++    public List<BehaviorRebateOrderEntity> queryOrderByOutBusinessNo(String userId, String outBusinessNo) {
++        // 1. 请求对象
++        UserBehaviorRebateOrder userBehaviorRebateOrderReq = new UserBehaviorRebateOrder();
++        userBehaviorRebateOrderReq.setUserId(userId);
++        userBehaviorRebateOrderReq.setOutBusinessNo(outBusinessNo);
++        // 2. 查询结果
++        List<UserBehaviorRebateOrder> userBehaviorRebateOrderResList = userBehaviorRebateOrderDao.queryOrderByOutBusinessNo(userBehaviorRebateOrderReq);
++        List<BehaviorRebateOrderEntity> behaviorRebateOrderEntities = new ArrayList<>(userBehaviorRebateOrderResList.size());
++        for (UserBehaviorRebateOrder userBehaviorRebateOrder : userBehaviorRebateOrderResList) {
++            BehaviorRebateOrderEntity behaviorRebateOrderEntity = BehaviorRebateOrderEntity.builder()
++                        .userId(userBehaviorRebateOrder.getUserId())
++                        .orderId(userBehaviorRebateOrder.getOrderId())
++                        .behaviorType(userBehaviorRebateOrder.getBehaviorType())
++                        .rebateDesc(userBehaviorRebateOrder.getRebateDesc())
++                        .rebateType(userBehaviorRebateOrder.getRebateType())
++                        .rebateConfig(userBehaviorRebateOrder.getRebateConfig())
++                        .outBusinessNo(userBehaviorRebateOrder.getOutBusinessNo())
++                        .bizId(userBehaviorRebateOrder.getBizId())
++                        .build();
++            behaviorRebateOrderEntities.add(behaviorRebateOrderEntity);
++        }
++        return behaviorRebateOrderEntities;
++    }
++
+ }
+diff --git a/big-market-infrastructure/src/main/java/cn/bugstack/infrastructure/persistent/repository/StrategyRepository.java b/big-market-infrastructure/src/main/java/cn/bugstack/infrastructure/persistent/repository/StrategyRepository.java
+index 6a9c116..a2ca82a 100644
+--- a/big-market-infrastructure/src/main/java/cn/bugstack/infrastructure/persistent/repository/StrategyRepository.java
++++ b/big-market-infrastructure/src/main/java/cn/bugstack/infrastructure/persistent/repository/StrategyRepository.java
+@@ -7,6 +7,7 @@ import cn.bugstack.domain.strategy.model.entity.StrategyEntity;
+ import cn.bugstack.domain.strategy.model.entity.StrategyRuleEntity;
+ import cn.bugstack.domain.strategy.model.valobj.*;
+ import cn.bugstack.domain.strategy.repository.IStrategyRepository;
++import cn.bugstack.domain.strategy.service.rule.chain.factory.DefaultChainFactory;
+ import cn.bugstack.infrastructure.persistent.dao.*;
+ import cn.bugstack.infrastructure.persistent.po.*;
+ import cn.bugstack.infrastructure.persistent.redis.IRedisService;
+@@ -42,6 +43,8 @@ public class StrategyRepository implements IStrategyRepository {
+     @Resource
+     private IStrategyAwardDao strategyAwardDao;
+     @Resource
++    private IRaffleActivityAccountDao raffleActivityAccountDao;
++    @Resource
+     private IRaffleActivityAccountDayDao raffleActivityAccountDayDao;
+     @Resource
+     private IRedisService redisService;
+@@ -344,4 +347,64 @@ public class StrategyRepository implements IStrategyRepository {
+         return resultMap;
+     }
+ 
++    @Override
++    public Integer queryActivityAccountTotalUseCount(String userId, Long strategyId) {
++        Long activityId = raffleActivityDao.queryActivityIdByStrategyId(strategyId);
++        RaffleActivityAccount raffleActivityAccount = raffleActivityAccountDao.queryActivityAccountByUserId(RaffleActivityAccount.builder()
++                .userId(userId)
++                .activityId(activityId)
++                .build());
++        // 返回计算使用量
++        return raffleActivityAccount.getTotalCount() - raffleActivityAccount.getTotalCountSurplus();
++    }
++
++    @Override
++    public List<RuleWeightVO> queryAwardRuleWeight(Long strategyId) {
++        // 优先从缓存获取
++        String cacheKey = Constants.RedisKey.STRATEGY_RULE_WEIGHT_KEY + strategyId;
++        List<RuleWeightVO> ruleWeightVOS = redisService.getValue(cacheKey);
++        if (null != ruleWeightVOS) return ruleWeightVOS;
++
++        ruleWeightVOS = new ArrayList<>();
++        // 1. 查询权重规则配置
++        StrategyRule strategyRuleReq = new StrategyRule();
++        strategyRuleReq.setStrategyId(strategyId);
++        strategyRuleReq.setRuleModel(DefaultChainFactory.LogicModel.RULE_WEIGHT.getCode());
++        String ruleValue = strategyRuleDao.queryStrategyRuleValue(strategyRuleReq);
++        // 2. 借助实体对象转换规则
++        StrategyRuleEntity strategyRuleEntity = new StrategyRuleEntity();
++        strategyRuleEntity.setRuleModel(DefaultChainFactory.LogicModel.RULE_WEIGHT.getCode());
++        strategyRuleEntity.setRuleValue(ruleValue);
++        Map<String, List<Integer>> ruleWeightValues = strategyRuleEntity.getRuleWeightValues();
++        // 3. 遍历规则组装奖品配置
++        Set<String> ruleWeightKeys = ruleWeightValues.keySet();
++        for (String ruleWeightKey : ruleWeightKeys) {
++            List<Integer> awardIds = ruleWeightValues.get(ruleWeightKey);
++            List<RuleWeightVO.Award> awardList = new ArrayList<>();
++            // 也可以修改为一次从数据库查询
++            for (Integer awardId : awardIds) {
++                StrategyAward strategyAwardReq = new StrategyAward();
++                strategyAwardReq.setStrategyId(strategyId);
++                strategyAwardReq.setAwardId(awardId);
++                StrategyAward strategyAward = strategyAwardDao.queryStrategyAward(strategyAwardReq);
++                awardList.add(RuleWeightVO.Award.builder()
++                        .awardId(strategyAward.getAwardId())
++                        .awardTitle(strategyAward.getAwardTitle())
++                        .build());
++            }
++
++            ruleWeightVOS.add(RuleWeightVO.builder()
++                    .ruleValue(ruleValue)
++                    .weight(Integer.valueOf(ruleWeightKey.split(Constants.COLON)[0]))
++                    .awardIds(awardIds)
++                    .awardList(awardList)
++                    .build());
++        }
++
++        // 设置缓存 - 实际场景中，这类数据，可以在活动下架的时候统一清空缓存。
++        redisService.setValue(cacheKey, ruleWeightVOS);
++
++        return ruleWeightVOS;
++    }
++
+ }
+diff --git a/big-market-trigger/src/main/java/cn/bugstack/trigger/http/RaffleActivityController.java b/big-market-trigger/src/main/java/cn/bugstack/trigger/http/RaffleActivityController.java
+index e986eaf..b4bd9cf 100644
+--- a/big-market-trigger/src/main/java/cn/bugstack/trigger/http/RaffleActivityController.java
++++ b/big-market-trigger/src/main/java/cn/bugstack/trigger/http/RaffleActivityController.java
+@@ -1,12 +1,15 @@
+ package cn.bugstack.trigger.http;
+ 
++import cn.bugstack.domain.activity.model.entity.ActivityAccountEntity;
+ import cn.bugstack.domain.activity.model.entity.UserRaffleOrderEntity;
++import cn.bugstack.domain.activity.service.IRaffleActivityAccountQuotaService;
+ import cn.bugstack.domain.activity.service.IRaffleActivityPartakeService;
+ import cn.bugstack.domain.activity.service.armory.IActivityArmory;
+ import cn.bugstack.domain.award.model.entity.UserAwardRecordEntity;
+ import cn.bugstack.domain.award.model.valobj.AwardStateVO;
+ import cn.bugstack.domain.award.service.IAwardService;
+ import cn.bugstack.domain.rebate.model.entity.BehaviorEntity;
++import cn.bugstack.domain.rebate.model.entity.BehaviorRebateOrderEntity;
+ import cn.bugstack.domain.rebate.model.valobj.BehaviorTypeVO;
+ import cn.bugstack.domain.rebate.service.IBehaviorRebateService;
+ import cn.bugstack.domain.strategy.model.entity.RaffleAwardEntity;
+@@ -16,6 +19,8 @@ import cn.bugstack.domain.strategy.service.armory.IStrategyArmory;
+ import cn.bugstack.trigger.api.IRaffleActivityService;
+ import cn.bugstack.trigger.api.dto.ActivityDrawRequestDTO;
+ import cn.bugstack.trigger.api.dto.ActivityDrawResponseDTO;
++import cn.bugstack.trigger.api.dto.UserActivityAccountRequestDTO;
++import cn.bugstack.trigger.api.dto.UserActivityAccountResponseDTO;
+ import cn.bugstack.types.enums.ResponseCode;
+ import cn.bugstack.types.exception.AppException;
+ import cn.bugstack.types.model.Response;
+@@ -45,6 +50,8 @@ public class RaffleActivityController implements IRaffleActivityService {
+     @Resource
+     private IRaffleActivityPartakeService raffleActivityPartakeService;
+     @Resource
++    private IRaffleActivityAccountQuotaService raffleActivityAccountQuotaService;
++    @Resource
+     private IRaffleStrategy raffleStrategy;
+     @Resource
+     private IAwardService awardService;
+@@ -207,4 +214,76 @@ public class RaffleActivityController implements IRaffleActivityService {
+         }
+     }
+ 
++    /**
++     * 判断是否签到接口
++     * <p>
++     * curl -X POST http://localhost:8091/api/v1/raffle/activity/is_calendar_sign_rebate -d "userId=xiaofuge" -H "Content-Type: application/x-www-form-urlencoded"
++     */
++    @RequestMapping(value = "is_calendar_sign_rebate", method = RequestMethod.POST)
++    @Override
++    public Response<Boolean> isCalendarSignRebate(String userId) {
++        try {
++            log.info("查询用户是否完成日历签到返利开始 userId:{}", userId);
++            String outBusinessNo = dateFormatDay.format(new Date());
++            List<BehaviorRebateOrderEntity> behaviorRebateOrderEntities = behaviorRebateService.queryOrderByOutBusinessNo(userId, outBusinessNo);
++            log.info("查询用户是否完成日历签到返利完成 userId:{} orders.size:{}", userId, behaviorRebateOrderEntities.size());
++            return Response.<Boolean>builder()
++                    .code(ResponseCode.SUCCESS.getCode())
++                    .info(ResponseCode.SUCCESS.getInfo())
++                    .data(!behaviorRebateOrderEntities.isEmpty()) // 只要不为空，则表示已经做了签到
++                    .build();
++        } catch (Exception e) {
++            log.error("查询用户是否完成日历签到返利失败 userId:{}", userId, e);
++            return Response.<Boolean>builder()
++                    .code(ResponseCode.UN_ERROR.getCode())
++                    .info(ResponseCode.UN_ERROR.getInfo())
++                    .data(false)
++                    .build();
++        }
++    }
++
++    /**
++     * 查询账户额度
++     * <p>
++     * curl --request POST \
++     * --url http://localhost:8091/api/v1/raffle/activity/query_user_activity_account \
++     * --header 'content-type: application/json' \
++     * --data '{
++     * "userId":"xiaofuge",
++     * "activityId": 100301
++     * }'
++     */
++    @RequestMapping(value = "query_user_activity_account", method = RequestMethod.POST)
++    @Override
++    public Response<UserActivityAccountResponseDTO> queryUserActivityAccount(UserActivityAccountRequestDTO request) {
++        try {
++            log.info("查询用户活动账户开始 userId:{} activityId:{}", request.getUserId(), request.getActivityId());
++            // 1. 参数校验
++            if (StringUtils.isBlank(request.getUserId()) || null == request.getActivityId()) {
++                throw new AppException(ResponseCode.ILLEGAL_PARAMETER.getCode(), ResponseCode.ILLEGAL_PARAMETER.getInfo());
++            }
++            ActivityAccountEntity activityAccountEntity = raffleActivityAccountQuotaService.queryActivityAccountEntity(request.getActivityId(), request.getUserId());
++            UserActivityAccountResponseDTO userActivityAccountResponseDTO = UserActivityAccountResponseDTO.builder()
++                    .totalCount(activityAccountEntity.getTotalCount())
++                    .totalCountSurplus(activityAccountEntity.getTotalCountSurplus())
++                    .dayCount(activityAccountEntity.getDayCount())
++                    .dayCountSurplus(activityAccountEntity.getDayCountSurplus())
++                    .monthCount(activityAccountEntity.getMonthCount())
++                    .monthCountSurplus(activityAccountEntity.getMonthCountSurplus())
++                    .build();
++            log.info("查询用户活动账户完成 userId:{} activityId:{} dto:{}", request.getUserId(), request.getActivityId(), JSON.toJSONString(userActivityAccountResponseDTO));
++            return Response.<UserActivityAccountResponseDTO>builder()
++                    .code(ResponseCode.SUCCESS.getCode())
++                    .info(ResponseCode.SUCCESS.getInfo())
++                    .data(userActivityAccountResponseDTO)
++                    .build();
++        } catch (Exception e) {
++            log.error("查询用户活动账户失败 userId:{} activityId:{}", request.getUserId(), request.getActivityId(), e);
++            return Response.<UserActivityAccountResponseDTO>builder()
++                    .code(ResponseCode.UN_ERROR.getCode())
++                    .info(ResponseCode.UN_ERROR.getInfo())
++                    .build();
++        }
++    }
++
+ }
+diff --git a/big-market-trigger/src/main/java/cn/bugstack/trigger/http/RaffleStrategyController.java b/big-market-trigger/src/main/java/cn/bugstack/trigger/http/RaffleStrategyController.java
+index ded8277..58369d1 100644
+--- a/big-market-trigger/src/main/java/cn/bugstack/trigger/http/RaffleStrategyController.java
++++ b/big-market-trigger/src/main/java/cn/bugstack/trigger/http/RaffleStrategyController.java
+@@ -4,15 +4,13 @@ import cn.bugstack.domain.activity.service.IRaffleActivityAccountQuotaService;
+ import cn.bugstack.domain.strategy.model.entity.RaffleAwardEntity;
+ import cn.bugstack.domain.strategy.model.entity.RaffleFactorEntity;
+ import cn.bugstack.domain.strategy.model.entity.StrategyAwardEntity;
++import cn.bugstack.domain.strategy.model.valobj.RuleWeightVO;
+ import cn.bugstack.domain.strategy.service.IRaffleAward;
+ import cn.bugstack.domain.strategy.service.IRaffleRule;
+ import cn.bugstack.domain.strategy.service.IRaffleStrategy;
+ import cn.bugstack.domain.strategy.service.armory.IStrategyArmory;
+ import cn.bugstack.trigger.api.IRaffleStrategyService;
+-import cn.bugstack.trigger.api.dto.RaffleAwardListRequestDTO;
+-import cn.bugstack.trigger.api.dto.RaffleStrategyRequestDTO;
+-import cn.bugstack.trigger.api.dto.RaffleAwardListResponseDTO;
+-import cn.bugstack.trigger.api.dto.RaffleStrategyResponseDTO;
++import cn.bugstack.trigger.api.dto.*;
+ import cn.bugstack.types.enums.ResponseCode;
+ import cn.bugstack.types.exception.AppException;
+ import cn.bugstack.types.model.Response;
+@@ -136,6 +134,65 @@ public class RaffleStrategyController implements IRaffleStrategyService {
+         }
+     }
+ 
++    /**
++     * &#x67E5;&#x8BE2;&#x62BD;&#x5956;&#x7B56;&#x7565;&#x6743;&#x91CD;&#x89C4;&#x5219;&#x914D;&#x7F6E;
++     * curl --request POST \
++     * --url http://localhost:8091/api/v1/raffle/strategy/query_raffle_strategy_rule_weight \
++     * --header 'content-type: application/json' \
++     * --data '{
++     * "userId":"xiaofuge",
++     * "activityId": 100301
++     * }'
++     */
++
++    @RequestMapping(value = "query_raffle_strategy_rule_weight", method = RequestMethod.POST)
++    @Override
++    public Response<List<RaffleStrategyRuleWeightResponseDTO>> queryRaffleStrategyRuleWeight(RaffleStrategyRuleWeightRequestDTO request) {
++        try {
++            log.info("查询抽奖策略权重规则配置开始 userId:{} activityId：{}", request.getUserId(), request.getActivityId());
++            // 1. 参数校验
++            if (StringUtils.isBlank(request.getUserId()) || null == request.getActivityId()) {
++                throw new AppException(ResponseCode.ILLEGAL_PARAMETER.getCode(), ResponseCode.ILLEGAL_PARAMETER.getInfo());
++            }
++            // 2. 查询用户抽奖总次数
++            Integer userActivityAccountTotalUseCount = raffleActivityAccountQuotaService.queryRaffleActivityAccountPartakeCount(request.getActivityId(), request.getUserId());
++            // 3. 查询规则
++            List<RaffleStrategyRuleWeightResponseDTO> raffleStrategyRuleWeightList = new ArrayList<>();
++            List<RuleWeightVO> ruleWeightVOList = raffleRule.queryAwardRuleWeightByActivityId(request.getActivityId());
++            for (RuleWeightVO ruleWeightVO : ruleWeightVOList) {
++                // 转换对象
++                List<RaffleStrategyRuleWeightResponseDTO.StrategyAward> strategyAwards = new ArrayList<>();
++                List<RuleWeightVO.Award> awardList = ruleWeightVO.getAwardList();
++                for (RuleWeightVO.Award award : awardList) {
++                    RaffleStrategyRuleWeightResponseDTO.StrategyAward strategyAward = new RaffleStrategyRuleWeightResponseDTO.StrategyAward();
++                    strategyAward.setAwardId(award.getAwardId());
++                    strategyAward.setAwardTitle(award.getAwardTitle());
++                    strategyAwards.add(strategyAward);
++                }
++                // 封装对象
++                RaffleStrategyRuleWeightResponseDTO raffleStrategyRuleWeightResponseDTO = new RaffleStrategyRuleWeightResponseDTO();
++                raffleStrategyRuleWeightResponseDTO.setRuleWeightCount(ruleWeightVO.getWeight());
++                raffleStrategyRuleWeightResponseDTO.setStrategyAwards(strategyAwards);
++                raffleStrategyRuleWeightResponseDTO.setUserActivityAccountTotalUseCount(userActivityAccountTotalUseCount);
++
++                raffleStrategyRuleWeightList.add(raffleStrategyRuleWeightResponseDTO);
++            }
++            Response<List<RaffleStrategyRuleWeightResponseDTO>> response = Response.<List<RaffleStrategyRuleWeightResponseDTO>>builder()
++                    .code(ResponseCode.SUCCESS.getCode())
++                    .info(ResponseCode.SUCCESS.getInfo())
++                    .data(raffleStrategyRuleWeightList)
++                    .build();
++            log.info("查询抽奖策略权重规则配置完成 userId:{} activityId：{} response: {}", request.getUserId(), request.getActivityId(), JSON.toJSONString(response));
++            return response;
++        } catch (Exception e) {
++            log.error("查询抽奖策略权重规则配置失败 userId:{} activityId：{}", request.getUserId(), request.getActivityId(), e);
++            return Response.<List<RaffleStrategyRuleWeightResponseDTO>>builder()
++                    .code(ResponseCode.UN_ERROR.getCode())
++                    .info(ResponseCode.UN_ERROR.getInfo())
++                    .build();
++        }
++    }
++
+     /**
+      * 随机抽奖接口
+      * <a href="http://localhost:8091/api/v1/raffle/strategy/random_raffle">/api/v1/raffle/random_raffle</a>
+diff --git a/big-market-types/src/main/java/cn/bugstack/types/common/Constants.java b/big-market-types/src/main/java/cn/bugstack/types/common/Constants.java
+index d2068e0..91d153b 100644
+--- a/big-market-types/src/main/java/cn/bugstack/types/common/Constants.java
++++ b/big-market-types/src/main/java/cn/bugstack/types/common/Constants.java
+@@ -22,6 +22,7 @@ public class Constants {
+         public static String RULE_TREE_VO_KEY = "rule_tree_vo_key_";
+         public static String STRATEGY_AWARD_COUNT_KEY = "strategy_award_count_key_";
+         public static String STRATEGY_AWARD_COUNT_QUERY_KEY = "strategy_award_count_query_key";
++        public static String STRATEGY_RULE_WEIGHT_KEY = "strategy_rule_weight_key_";
+         public static String ACTIVITY_SKU_COUNT_QUERY_KEY = "activity_sku_count_query_key";
+         public static String ACTIVITY_SKU_STOCK_COUNT_KEY = "activity_sku_stock_count_key_";
+         public static String ACTIVITY_SKU_COUNT_CLEAR_KEY = "activity_sku_count_clear_key_";
+diff --git a/docs/dev-ops/mysql/sql/big_market.sql b/docs/dev-ops/mysql/sql/big_market.sql
+index 9364d97..e3f0e40 100644
+--- a/docs/dev-ops/mysql/sql/big_market.sql
++++ b/docs/dev-ops/mysql/sql/big_market.sql
+@@ -7,7 +7,7 @@
+ #
+ # 主机: 127.0.0.1 (MySQL 5.6.39)
+ # 数据库: big_market
+-# 生成时间: 2024-04-30 10:19:11 +0000
++# 生成时间: 2024-05-03 08:36:51 +0000
+ # ************************************************************
+ 
+ 
+@@ -144,7 +144,7 @@ LOCK TABLES `raffle_activity_count` WRITE;
+ 
+ INSERT INTO `raffle_activity_count` (`id`, `activity_count_id`, `total_count`, `day_count`, `month_count`, `create_time`, `update_time`)
+ VALUES
+-	(1,11101,10000,1000,1000,'2024-03-09 10:15:42','2024-04-27 15:49:37');
++	(1,11101,10,10,10,'2024-03-09 10:15:42','2024-05-01 14:34:16');
+ 
+ /*!40000 ALTER TABLE `raffle_activity_count` ENABLE KEYS */;
+ UNLOCK TABLES;
+@@ -174,7 +174,7 @@ LOCK TABLES `raffle_activity_sku` WRITE;
+ 
+ INSERT INTO `raffle_activity_sku` (`id`, `sku`, `activity_id`, `activity_count_id`, `stock_count`, `stock_count_surplus`, `create_time`, `update_time`)
+ VALUES
+-	(1,9011,100301,11101,100000,100000,'2024-03-16 11:41:09','2024-04-27 15:49:25');
++	(1,9011,100301,11101,100000,99927,'2024-03-16 11:41:09','2024-05-03 13:28:50');
+ 
+ /*!40000 ALTER TABLE `raffle_activity_sku` ENABLE KEYS */;
+ UNLOCK TABLES;
+@@ -311,7 +311,7 @@ VALUES
+ 	(3,100002,'抽奖策略-非完整1概率',NULL,'2023-12-09 09:37:19','2024-02-03 10:14:17'),
+ 	(4,100004,'抽奖策略-随机抽奖',NULL,'2023-12-09 09:37:19','2024-01-20 19:21:03'),
+ 	(5,100005,'抽奖策略-测试概率计算',NULL,'2023-12-09 09:37:19','2024-01-21 21:54:58'),
+-	(6,100006,'抽奖策略-规则树',NULL,'2024-02-03 09:53:40','2024-02-03 09:53:40');
++	(6,100006,'抽奖策略-规则树','rule_blacklist,rule_weight','2024-02-03 09:53:40','2024-05-03 09:02:38');
+ 
+ /*!40000 ALTER TABLE `strategy` ENABLE KEYS */;
+ UNLOCK TABLES;
+@@ -372,7 +372,7 @@ VALUES
+ 	(26,100006,105,'小米su7周体验','抽奖3次后解锁',100,38,0.0300,'tree_lock_3',5,'2023-12-09 09:38:31','2024-04-27 13:08:16'),
+ 	(27,100006,106,'轻奢办公椅','抽奖2次后解锁',100,25,0.0300,'tree_lock_2',6,'2023-12-09 09:38:31','2024-04-27 13:30:05'),
+ 	(28,100006,107,'小霸王游戏机','抽奖1次后解锁',100,24,0.0300,'tree_lock_1',7,'2023-12-09 09:38:31','2024-04-27 13:36:35'),
+-	(29,100006,108,'暴走玩偶',NULL,100,33,0.0300,'tree_luck_award',8,'2023-12-09 09:38:31','2024-04-27 13:19:45');
++	(29,100006,108,'暴走玩偶',NULL,100,32,0.0300,'tree_luck_award',8,'2023-12-09 09:38:31','2024-05-01 14:59:35');
+ 
+ /*!40000 ALTER TABLE `strategy_award` ENABLE KEYS */;
+ UNLOCK TABLES;
+@@ -394,6 +394,7 @@ CREATE TABLE `strategy_rule` (
+   `create_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+   `update_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+   PRIMARY KEY (`id`),
++  UNIQUE KEY `uq_strategy_id_rule_model` (`strategy_id`,`rule_model`),
+   KEY `idx_strategy_id_award_id` (`strategy_id`,`award_id`)
+ ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='抽奖策略规则';
+ 
+@@ -402,8 +403,10 @@ LOCK TABLES `strategy_rule` WRITE;
+ 
+ INSERT INTO `strategy_rule` (`id`, `strategy_id`, `award_id`, `rule_type`, `rule_model`, `rule_value`, `rule_desc`, `create_time`, `update_time`)
+ VALUES
+-	(13,100001,NULL,1,'rule_weight','4000:102,103,104,105 5000:102,103,104,105,106,107 6000:102,103,104,105,106,107,108,109','消耗6000分，必中奖范围','2023-12-09 10:30:43','2023-12-31 14:51:50'),
+-	(14,100001,NULL,1,'rule_blacklist','101:user001,user002,user003','黑名单抽奖，积分兜底','2023-12-09 12:59:45','2024-02-14 18:16:20');
++	(13,100001,NULL,1,'rule_weight','60:102 4000:102,103,104,105 5000:102,103,104,105,106,107 6000:102,103,104,105,106,107,108','消耗6000分，必中奖范围','2023-12-09 10:30:43','2024-05-03 10:38:24'),
++	(14,100001,NULL,1,'rule_blacklist','101:user001,user002,user003','黑名单抽奖，积分兜底','2023-12-09 12:59:45','2024-02-14 18:16:20'),
++	(15,100006,NULL,1,'rule_weight','60:102 4000:102,103,104,105 5000:102,103,104,105,106,107 6000:102,103,104,105,106,107,108','消耗6000分，必中奖范围','2023-12-09 10:30:43','2024-05-03 10:38:28'),
++	(16,100006,NULL,1,'rule_blacklist','101:user001,user002,user003','黑名单抽奖，积分兜底','2023-12-09 12:59:45','2024-02-14 18:16:20');
+ 
+ /*!40000 ALTER TABLE `strategy_rule` ENABLE KEYS */;
+ UNLOCK TABLES;
+diff --git a/docs/dev-ops/mysql/sql/big_market_01.sql b/docs/dev-ops/mysql/sql/big_market_01.sql
+index e9f679b..4ffb920 100644
+--- a/docs/dev-ops/mysql/sql/big_market_01.sql
++++ b/docs/dev-ops/mysql/sql/big_market_01.sql
+@@ -7,7 +7,7 @@
+ #
+ # 主机: 127.0.0.1 (MySQL 5.6.39)
+ # 数据库: big_market_01
+-# 生成时间: 2024-04-30 10:18:45 +0000
++# 生成时间: 2024-05-03 08:37:02 +0000
+ # ************************************************************
+ 
+ 
+@@ -48,7 +48,8 @@ LOCK TABLES `raffle_activity_account` WRITE;
+ 
+ INSERT INTO `raffle_activity_account` (`id`, `user_id`, `activity_id`, `total_count`, `total_count_surplus`, `day_count`, `day_count_surplus`, `month_count`, `month_count_surplus`, `create_time`, `update_time`)
+ VALUES
+-	(3,'xiaofuge',100301,10000,10000,10000,10000,10000,10000,'2024-03-23 16:38:57','2024-04-27 15:49:56');
++	(3,'xiaofuge',100301,8890,28,90,66,90,66,'2024-03-23 16:38:57','2024-05-03 13:28:42'),
++	(4,'12345',100301,10,10,10,10,10,10,'2024-05-01 15:28:50','2024-05-01 15:28:50');
+ 
+ /*!40000 ALTER TABLE `raffle_activity_account` ENABLE KEYS */;
+ UNLOCK TABLES;
+@@ -80,7 +81,9 @@ VALUES
+ 	(2,'xiaofuge',100301,'2024-04-05',45,44,'2024-04-05 17:10:31','2024-04-05 17:10:31'),
+ 	(3,'xiaofuge',100301,'2024-04-08',45,44,'2024-04-08 22:52:47','2024-04-08 22:52:47'),
+ 	(4,'xiaofuge',100301,'2024-04-13',45,23,'2024-04-13 11:44:10','2024-04-20 10:51:09'),
+-	(7,'xiaofuge',100301,'2024-04-20',45,13,'2024-04-20 16:50:38','2024-04-20 16:50:38');
++	(7,'xiaofuge',100301,'2024-04-20',45,13,'2024-04-20 16:50:38','2024-04-20 16:50:38'),
++	(11,'xiaofuge',100301,'2024-05-01',60,40,'2024-05-01 14:51:45','2024-05-01 17:45:10'),
++	(12,'xiaofuge',100301,'2024-05-03',90,86,'2024-05-03 09:00:28','2024-05-03 13:28:42');
+ 
+ /*!40000 ALTER TABLE `raffle_activity_account_day` ENABLE KEYS */;
+ UNLOCK TABLES;
+@@ -104,6 +107,15 @@ CREATE TABLE `raffle_activity_account_month` (
+   UNIQUE KEY `uq_user_id_activity_id_month` (`user_id`,`activity_id`,`month`)
+ ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='抽奖活动账户表-月次数';
+ 
++LOCK TABLES `raffle_activity_account_month` WRITE;
++/*!40000 ALTER TABLE `raffle_activity_account_month` DISABLE KEYS */;
++
++INSERT INTO `raffle_activity_account_month` (`id`, `user_id`, `activity_id`, `month`, `month_count`, `month_count_surplus`, `create_time`, `update_time`)
++VALUES
++	(7,'xiaofuge',100301,'2024-05',70,46,'2024-05-01 14:51:45','2024-05-03 13:28:42');
++
++/*!40000 ALTER TABLE `raffle_activity_account_month` ENABLE KEYS */;
++UNLOCK TABLES;
+ 
+ 
+ # 转储表 raffle_activity_order_000
+@@ -171,7 +183,16 @@ VALUES
+ 	(72,'xiaofuge',9011,100301,'测试活动',100006,'837744050164','2024-04-21 10:40:25',1,1,1,'completed','613036507854','2024-04-21 18:40:25','2024-04-21 18:40:25'),
+ 	(73,'xiaofuge',9011,100301,'测试活动',100006,'766742523760','2024-04-21 10:40:25',1,1,1,'completed','649099837249','2024-04-21 18:40:25','2024-04-21 18:40:25'),
+ 	(74,'xiaofuge',9011,100301,'测试活动',100006,'856474163547','2024-04-21 10:40:25',1,1,1,'completed','652903372986','2024-04-21 18:40:25','2024-04-21 18:40:25'),
+-	(75,'xiaofuge',9011,100301,'测试活动',100006,'668775949799','2024-04-21 10:40:25',1,1,1,'completed','097066347980','2024-04-21 18:40:25','2024-04-21 18:40:25');
++	(75,'xiaofuge',9011,100301,'测试活动',100006,'668775949799','2024-04-21 10:40:25',1,1,1,'completed','097066347980','2024-04-21 18:40:25','2024-04-21 18:40:25'),
++	(76,'xiaofuge',9011,100301,'测试活动',100006,'164452591012','2024-05-01 06:44:26',10,10,10,'completed','xiaofuge_sku_2024042903','2024-05-01 14:44:26','2024-05-01 14:44:26'),
++	(77,'xiaofuge',9011,100301,'测试活动',100006,'492597085813','2024-05-01 06:51:45',10,10,10,'completed','xiaofuge_sku_2024042904','2024-05-01 14:51:45','2024-05-01 14:51:45'),
++	(78,'xiaofuge',9011,100301,'测试活动',100006,'031706643902','2024-05-01 06:54:36',10,10,10,'completed','xiaofuge_sku_2024042905','2024-05-01 14:54:36','2024-05-01 14:54:36'),
++	(79,'xiaofuge',9011,100301,'测试活动',100006,'460855930969','2024-05-01 07:00:12',10,10,10,'completed','xiaofuge_sku_2024042906','2024-05-01 15:00:12','2024-05-01 15:00:12'),
++	(1096,'xiaofuge',9011,100301,'测试活动',100006,'364757830401','2024-05-01 09:14:43',10,10,10,'completed','xiaofuge_sku_20240501','2024-05-01 17:14:43','2024-05-01 17:14:43'),
++	(1097,'xiaofuge',9011,100301,'测试活动',100006,'157026402583','2024-05-01 09:39:40',10,10,10,'completed','xiaofuge_sku_20240420','2024-05-01 17:39:40','2024-05-01 17:39:40'),
++	(1098,'xiaofuge',9011,100301,'测试活动',100006,'481116019750','2024-05-01 09:41:53',10,10,10,'completed','xiaofuge_sku_20240401','2024-05-01 17:41:53','2024-05-01 17:41:53'),
++	(1099,'xiaofuge',9011,100301,'测试活动',100006,'639151059221','2024-05-01 09:45:10',10,10,10,'completed','xiaofuge_sku_20240402','2024-05-01 17:45:10','2024-05-01 17:45:10'),
++	(4234,'xiaofuge',9011,100301,'测试活动',100006,'129360973197','2024-05-03 05:28:43',10,10,10,'completed','xiaofuge_sku_20240503','2024-05-03 13:28:42','2024-05-03 13:28:42');
+ 
+ /*!40000 ALTER TABLE `raffle_activity_order_001` ENABLE KEYS */;
+ UNLOCK TABLES;
+@@ -344,7 +365,66 @@ VALUES
+ 	(82,'xiaofuge','send_award','05612212348','{\"data\":{\"awardId\":104,\"awardTitle\":\"小米台灯\",\"userId\":\"xiaofuge\"},\"id\":\"05612212348\",\"timestamp\":1714201222825}','completed','2024-04-27 15:00:22','2024-04-27 15:00:22'),
+ 	(83,'xiaofuge','send_rebate','35170430024','{\"data\":{\"bizId\":\"xiaofuge_sku_20240430\",\"rebateConfig\":\"9011\",\"rebateType\":\"sign\",\"userId\":\"xiaofuge\"},\"id\":\"35170430024\",\"timestamp\":1714471292871}','completed','2024-04-30 18:01:33','2024-04-30 18:01:33'),
+ 	(84,'xiaofuge','send_rebate','33541289034','{\"data\":{\"bizId\":\"xiaofuge_sku_20240430\",\"rebateConfig\":\"9011\",\"rebateType\":\"sign\",\"userId\":\"xiaofuge\"},\"id\":\"33541289034\",\"timestamp\":1714471544134}','completed','2024-04-30 18:05:44','2024-04-30 18:05:44'),
+-	(85,'xiaofuge','send_rebate','42019106000','{\"data\":{\"bizId\":\"xiaofuge_integral_20240430\",\"rebateConfig\":\"10\",\"rebateType\":\"sign\",\"userId\":\"xiaofuge\"},\"id\":\"42019106000\",\"timestamp\":1714471544137}','completed','2024-04-30 18:05:44','2024-04-30 18:05:44');
++	(85,'xiaofuge','send_rebate','42019106000','{\"data\":{\"bizId\":\"xiaofuge_integral_20240430\",\"rebateConfig\":\"10\",\"rebateType\":\"sign\",\"userId\":\"xiaofuge\"},\"id\":\"42019106000\",\"timestamp\":1714471544137}','completed','2024-04-30 18:05:44','2024-04-30 18:05:44'),
++	(86,'xiaofuge','send_rebate','19381004535','{\"data\":{\"bizId\":\"xiaofuge_sku_20240429\",\"rebateConfig\":\"9011\",\"rebateType\":\"sign\",\"userId\":\"xiaofuge\"},\"id\":\"19381004535\",\"timestamp\":1714472470563}','completed','2024-04-30 18:21:10','2024-04-30 18:21:10'),
++	(87,'xiaofuge','send_rebate','64076325441','{\"data\":{\"bizId\":\"xiaofuge_integral_20240429\",\"rebateConfig\":\"10\",\"rebateType\":\"sign\",\"userId\":\"xiaofuge\"},\"id\":\"64076325441\",\"timestamp\":1714472470567}','completed','2024-04-30 18:21:10','2024-04-30 18:21:10'),
++	(88,'xiaofuge','send_rebate','68231201640','{\"data\":{\"bizId\":\"xiaofuge_sku_20240501\",\"rebateConfig\":\"9011\",\"rebateType\":\"sign\",\"userId\":\"xiaofuge\"},\"id\":\"68231201640\",\"timestamp\":1714528145559}','completed','2024-05-01 09:49:06','2024-05-01 09:50:45'),
++	(89,'xiaofuge','send_rebate','50111005352','{\"data\":{\"bizId\":\"xiaofuge_integral_20240501\",\"rebateConfig\":\"10\",\"rebateType\":\"sign\",\"userId\":\"xiaofuge\"},\"id\":\"50111005352\",\"timestamp\":1714528145563}','completed','2024-05-01 09:49:06','2024-05-01 09:50:45'),
++	(90,'xiaofuge','send_rebate','75682316589','{\"data\":{\"bizId\":\"xiaofuge_sku_20240502\",\"rebateConfig\":\"9011\",\"rebateType\":\"sign\",\"userId\":\"xiaofuge\"},\"id\":\"75682316589\",\"timestamp\":1714528244315}','completed','2024-05-01 09:50:44','2024-05-01 09:50:44'),
++	(91,'xiaofuge','send_rebate','15910602537','{\"data\":{\"bizId\":\"xiaofuge_integral_20240502\",\"rebateConfig\":\"10\",\"rebateType\":\"sign\",\"userId\":\"xiaofuge\"},\"id\":\"15910602537\",\"timestamp\":1714528244322}','completed','2024-05-01 09:50:44','2024-05-01 09:50:44'),
++	(92,'xiaofuge','send_rebate','84186056749','{\"data\":{\"bizId\":\"xiaofuge_sku_2024042901\",\"rebateConfig\":\"9011\",\"rebateType\":\"sign\",\"userId\":\"xiaofuge\"},\"id\":\"84186056749\",\"timestamp\":1714543316732}','completed','2024-05-01 14:01:57','2024-05-01 14:01:57'),
++	(93,'xiaofuge','send_rebate','96465813570','{\"data\":{\"bizId\":\"xiaofuge_integral_2024042901\",\"rebateConfig\":\"10\",\"rebateType\":\"sign\",\"userId\":\"xiaofuge\"},\"id\":\"96465813570\",\"timestamp\":1714543316735}','completed','2024-05-01 14:01:57','2024-05-01 14:01:57'),
++	(94,'xiaofuge','send_rebate','52282173291','{\"data\":{\"bizId\":\"xiaofuge_sku_2024042902\",\"rebateConfig\":\"9011\",\"rebateType\":\"sign\",\"userId\":\"xiaofuge\"},\"id\":\"52282173291\",\"timestamp\":1714545280296}','completed','2024-05-01 14:34:40','2024-05-01 14:34:40'),
++	(95,'xiaofuge','send_rebate','57252028754','{\"data\":{\"bizId\":\"xiaofuge_integral_2024042902\",\"rebateConfig\":\"10\",\"rebateType\":\"sign\",\"userId\":\"xiaofuge\"},\"id\":\"57252028754\",\"timestamp\":1714545280298}','completed','2024-05-01 14:34:40','2024-05-01 14:34:40'),
++	(96,'xiaofuge','send_rebate','49677315112','{\"data\":{\"bizId\":\"xiaofuge_sku_2024042903\",\"rebateConfig\":\"9011\",\"rebateType\":\"sku\",\"userId\":\"xiaofuge\"},\"id\":\"49677315112\",\"timestamp\":1714545434013}','completed','2024-05-01 14:37:14','2024-05-01 14:37:14'),
++	(97,'xiaofuge','send_rebate','29687183027','{\"data\":{\"bizId\":\"xiaofuge_integral_2024042903\",\"rebateConfig\":\"10\",\"rebateType\":\"integral\",\"userId\":\"xiaofuge\"},\"id\":\"29687183027\",\"timestamp\":1714545434017}','completed','2024-05-01 14:37:14','2024-05-01 14:37:14'),
++	(98,'xiaofuge','send_rebate','55494780983','{\"data\":{\"bizId\":\"xiaofuge_sku_2024042904\",\"rebateConfig\":\"9011\",\"rebateType\":\"sku\",\"userId\":\"xiaofuge\"},\"id\":\"55494780983\",\"timestamp\":1714546304733}','completed','2024-05-01 14:51:45','2024-05-01 14:51:45'),
++	(99,'xiaofuge','send_rebate','63676464061','{\"data\":{\"bizId\":\"xiaofuge_integral_2024042904\",\"rebateConfig\":\"10\",\"rebateType\":\"integral\",\"userId\":\"xiaofuge\"},\"id\":\"63676464061\",\"timestamp\":1714546304736}','completed','2024-05-01 14:51:45','2024-05-01 14:51:45'),
++	(100,'xiaofuge','send_rebate','97069945042','{\"data\":{\"bizId\":\"xiaofuge_sku_2024042905\",\"rebateConfig\":\"9011\",\"rebateType\":\"sku\",\"userId\":\"xiaofuge\"},\"id\":\"97069945042\",\"timestamp\":1714546475883}','completed','2024-05-01 14:54:36','2024-05-01 14:54:36'),
++	(101,'xiaofuge','send_rebate','25711583274','{\"data\":{\"bizId\":\"xiaofuge_integral_2024042905\",\"rebateConfig\":\"10\",\"rebateType\":\"integral\",\"userId\":\"xiaofuge\"},\"id\":\"25711583274\",\"timestamp\":1714546475885}','completed','2024-05-01 14:54:36','2024-05-01 14:54:36'),
++	(102,'xiaofuge','send_award','42156280709','{\"data\":{\"awardId\":108,\"awardTitle\":\"暴走玩偶\",\"userId\":\"xiaofuge\"},\"id\":\"42156280709\",\"timestamp\":1714546659050}','completed','2024-05-01 14:57:39','2024-05-01 14:57:39'),
++	(103,'xiaofuge','send_award','78085050648','{\"data\":{\"awardId\":101,\"awardTitle\":\"随机积分\",\"userId\":\"xiaofuge\"},\"id\":\"78085050648\",\"timestamp\":1714546688551}','completed','2024-05-01 14:58:08','2024-05-01 14:58:08'),
++	(104,'xiaofuge','send_award','55842869580','{\"data\":{\"awardId\":107,\"awardTitle\":\"小霸王游戏机\",\"userId\":\"xiaofuge\"},\"id\":\"55842869580\",\"timestamp\":1714546773027}','completed','2024-05-01 14:59:33','2024-05-01 14:59:33'),
++	(105,'xiaofuge','send_award','86587566543','{\"data\":{\"awardId\":103,\"awardTitle\":\"支付优惠券\",\"userId\":\"xiaofuge\"},\"id\":\"86587566543\",\"timestamp\":1714546773422}','completed','2024-05-01 14:59:33','2024-05-01 14:59:33'),
++	(106,'xiaofuge','send_award','88267642020','{\"data\":{\"awardId\":101,\"awardTitle\":\"随机积分\",\"userId\":\"xiaofuge\"},\"id\":\"88267642020\",\"timestamp\":1714546773490}','completed','2024-05-01 14:59:33','2024-05-01 14:59:33'),
++	(107,'xiaofuge','send_award','03348496593','{\"data\":{\"awardId\":106,\"awardTitle\":\"轻奢办公椅\",\"userId\":\"xiaofuge\"},\"id\":\"03348496593\",\"timestamp\":1714546773570}','completed','2024-05-01 14:59:33','2024-05-01 14:59:33'),
++	(108,'xiaofuge','send_award','20140993483','{\"data\":{\"awardId\":104,\"awardTitle\":\"小米台灯\",\"userId\":\"xiaofuge\"},\"id\":\"20140993483\",\"timestamp\":1714546773661}','completed','2024-05-01 14:59:33','2024-05-01 14:59:33'),
++	(109,'xiaofuge','send_award','95682596295','{\"data\":{\"awardId\":107,\"awardTitle\":\"小霸王游戏机\",\"userId\":\"xiaofuge\"},\"id\":\"95682596295\",\"timestamp\":1714546773713}','completed','2024-05-01 14:59:33','2024-05-01 14:59:33'),
++	(110,'xiaofuge','send_award','95939034377','{\"data\":{\"awardId\":107,\"awardTitle\":\"小霸王游戏机\",\"userId\":\"xiaofuge\"},\"id\":\"95939034377\",\"timestamp\":1714546773772}','completed','2024-05-01 14:59:33','2024-05-01 14:59:33'),
++	(111,'xiaofuge','send_award','28569395651','{\"data\":{\"awardId\":103,\"awardTitle\":\"支付优惠券\",\"userId\":\"xiaofuge\"},\"id\":\"28569395651\",\"timestamp\":1714546773829}','completed','2024-05-01 14:59:33','2024-05-01 14:59:33'),
++	(112,'xiaofuge','send_award','37713199996','{\"data\":{\"awardId\":108,\"awardTitle\":\"暴走玩偶\",\"userId\":\"xiaofuge\"},\"id\":\"37713199996\",\"timestamp\":1714546773889}','completed','2024-05-01 14:59:33','2024-05-01 14:59:33'),
++	(113,'xiaofuge','send_award','39729736863','{\"data\":{\"awardId\":108,\"awardTitle\":\"暴走玩偶\",\"userId\":\"xiaofuge\"},\"id\":\"39729736863\",\"timestamp\":1714546773937}','completed','2024-05-01 14:59:33','2024-05-01 14:59:33'),
++	(114,'xiaofuge','send_award','63571397739','{\"data\":{\"awardId\":108,\"awardTitle\":\"暴走玩偶\",\"userId\":\"xiaofuge\"},\"id\":\"63571397739\",\"timestamp\":1714546774008}','completed','2024-05-01 14:59:34','2024-05-01 14:59:34'),
++	(115,'xiaofuge','send_award','41779666583','{\"data\":{\"awardId\":107,\"awardTitle\":\"小霸王游戏机\",\"userId\":\"xiaofuge\"},\"id\":\"41779666583\",\"timestamp\":1714546774083}','completed','2024-05-01 14:59:34','2024-05-01 14:59:34'),
++	(116,'xiaofuge','send_award','35122333142','{\"data\":{\"awardId\":107,\"awardTitle\":\"小霸王游戏机\",\"userId\":\"xiaofuge\"},\"id\":\"35122333142\",\"timestamp\":1714546774144}','completed','2024-05-01 14:59:34','2024-05-01 14:59:34'),
++	(117,'xiaofuge','send_award','07007092150','{\"data\":{\"awardId\":102,\"awardTitle\":\"OpenAI会员卡\",\"userId\":\"xiaofuge\"},\"id\":\"07007092150\",\"timestamp\":1714546774211}','completed','2024-05-01 14:59:34','2024-05-01 14:59:34'),
++	(118,'xiaofuge','send_award','08460963032','{\"data\":{\"awardId\":101,\"awardTitle\":\"随机积分\",\"userId\":\"xiaofuge\"},\"id\":\"08460963032\",\"timestamp\":1714546774278}','completed','2024-05-01 14:59:34','2024-05-01 14:59:34'),
++	(119,'xiaofuge','send_award','06210115971','{\"data\":{\"awardId\":108,\"awardTitle\":\"暴走玩偶\",\"userId\":\"xiaofuge\"},\"id\":\"06210115971\",\"timestamp\":1714546774344}','completed','2024-05-01 14:59:34','2024-05-01 14:59:34'),
++	(120,'xiaofuge','send_award','78110342017','{\"data\":{\"awardId\":104,\"awardTitle\":\"小米台灯\",\"userId\":\"xiaofuge\"},\"id\":\"78110342017\",\"timestamp\":1714546774404}','completed','2024-05-01 14:59:34','2024-05-01 14:59:34'),
++	(121,'xiaofuge','send_award','34349719655','{\"data\":{\"awardId\":101,\"awardTitle\":\"随机积分\",\"userId\":\"xiaofuge\"},\"id\":\"34349719655\",\"timestamp\":1714546774481}','completed','2024-05-01 14:59:34','2024-05-01 14:59:34'),
++	(122,'xiaofuge','send_award','16795012327','{\"data\":{\"awardId\":108,\"awardTitle\":\"暴走玩偶\",\"userId\":\"xiaofuge\"},\"id\":\"16795012327\",\"timestamp\":1714546774537}','completed','2024-05-01 14:59:34','2024-05-01 14:59:34'),
++	(123,'xiaofuge','send_rebate','01343683507','{\"data\":{\"bizId\":\"xiaofuge_sku_2024042906\",\"rebateConfig\":\"9011\",\"rebateType\":\"sku\",\"userId\":\"xiaofuge\"},\"id\":\"01343683507\",\"timestamp\":1714546811980}','completed','2024-05-01 15:00:12','2024-05-01 15:00:12'),
++	(124,'xiaofuge','send_rebate','22675851113','{\"data\":{\"bizId\":\"xiaofuge_integral_2024042906\",\"rebateConfig\":\"10\",\"rebateType\":\"integral\",\"userId\":\"xiaofuge\"},\"id\":\"22675851113\",\"timestamp\":1714546811983}','completed','2024-05-01 15:00:12','2024-05-01 15:00:12'),
++	(125,'xiaofuge','send_rebate','72790041499','{\"data\":{\"bizId\":\"xiaofuge_sku_20240501\",\"rebateConfig\":\"9011\",\"rebateType\":\"sku\",\"userId\":\"xiaofuge\"},\"id\":\"72790041499\",\"timestamp\":1714547646310}','completed','2024-05-01 15:14:06','2024-05-01 15:14:06'),
++	(126,'xiaofuge','send_rebate','07532513295','{\"data\":{\"bizId\":\"xiaofuge_integral_20240501\",\"rebateConfig\":\"10\",\"rebateType\":\"integral\",\"userId\":\"xiaofuge\"},\"id\":\"07532513295\",\"timestamp\":1714547646312}','completed','2024-05-01 15:14:06','2024-05-01 15:14:06'),
++	(127,'12345','send_rebate','44168301206','{\"data\":{\"bizId\":\"12345_sku_20240501\",\"rebateConfig\":\"9011\",\"rebateType\":\"sku\",\"userId\":\"12345\"},\"id\":\"44168301206\",\"timestamp\":1714548524834}','completed','2024-05-01 15:28:45','2024-05-01 15:28:45'),
++	(128,'12345','send_rebate','77696087444','{\"data\":{\"bizId\":\"12345_integral_20240501\",\"rebateConfig\":\"10\",\"rebateType\":\"integral\",\"userId\":\"12345\"},\"id\":\"77696087444\",\"timestamp\":1714548524845}','completed','2024-05-01 15:28:45','2024-05-01 15:28:45'),
++	(129,'xiaofuge','send_rebate','53358221321','{\"data\":{\"bizId\":\"xiaofuge_sku_20240501\",\"rebateConfig\":\"9011\",\"rebateType\":\"sku\",\"userId\":\"xiaofuge\"},\"id\":\"53358221321\",\"timestamp\":1714554815882}','completed','2024-05-01 17:13:36','2024-05-01 17:13:36'),
++	(130,'xiaofuge','send_rebate','29895043546','{\"data\":{\"bizId\":\"xiaofuge_integral_20240501\",\"rebateConfig\":\"10\",\"rebateType\":\"integral\",\"userId\":\"xiaofuge\"},\"id\":\"29895043546\",\"timestamp\":1714554815884}','completed','2024-05-01 17:13:36','2024-05-01 17:13:36'),
++	(131,'xiaofuge','send_rebate','97779206565','{\"data\":{\"bizId\":\"xiaofuge_sku_20240420\",\"rebateConfig\":\"9011\",\"rebateType\":\"sku\",\"userId\":\"xiaofuge\"},\"id\":\"97779206565\",\"timestamp\":1714556371985}','completed','2024-05-01 17:39:32','2024-05-01 17:39:35'),
++	(132,'xiaofuge','send_rebate','63122692373','{\"data\":{\"bizId\":\"xiaofuge_integral_20240420\",\"rebateConfig\":\"10\",\"rebateType\":\"integral\",\"userId\":\"xiaofuge\"},\"id\":\"63122692373\",\"timestamp\":1714556371994}','completed','2024-05-01 17:39:32','2024-05-01 17:39:35'),
++	(133,'xiaofuge','send_rebate','64655129366','{\"data\":{\"bizId\":\"xiaofuge_sku_20240401\",\"rebateConfig\":\"9011\",\"rebateType\":\"sku\",\"userId\":\"xiaofuge\"},\"id\":\"64655129366\",\"timestamp\":1714556504378}','completed','2024-05-01 17:41:45','2024-05-01 17:41:45'),
++	(134,'xiaofuge','send_rebate','38396244073','{\"data\":{\"bizId\":\"xiaofuge_integral_20240401\",\"rebateConfig\":\"10\",\"rebateType\":\"integral\",\"userId\":\"xiaofuge\"},\"id\":\"38396244073\",\"timestamp\":1714556504389}','completed','2024-05-01 17:41:45','2024-05-01 17:41:45'),
++	(135,'xiaofuge','send_rebate','08184105296','{\"data\":{\"bizId\":\"xiaofuge_sku_20240402\",\"rebateConfig\":\"9011\",\"rebateType\":\"sku\",\"userId\":\"xiaofuge\"},\"id\":\"08184105296\",\"timestamp\":1714556709389}','completed','2024-05-01 17:45:09','2024-05-01 17:45:09'),
++	(136,'xiaofuge','send_rebate','16417473546','{\"data\":{\"bizId\":\"xiaofuge_integral_20240402\",\"rebateConfig\":\"10\",\"rebateType\":\"integral\",\"userId\":\"xiaofuge\"},\"id\":\"16417473546\",\"timestamp\":1714556709391}','completed','2024-05-01 17:45:09','2024-05-01 17:45:09'),
++	(137,'xiaofuge','send_rebate','04164162705','{\"data\":{\"bizId\":\"xiaofuge_sku_20240501\",\"rebateConfig\":\"9011\",\"rebateType\":\"sku\",\"userId\":\"xiaofuge\"},\"id\":\"04164162705\",\"timestamp\":1714557266867}','completed','2024-05-01 17:54:27','2024-05-01 17:54:27'),
++	(138,'xiaofuge','send_rebate','79924892493','{\"data\":{\"bizId\":\"xiaofuge_integral_20240501\",\"rebateConfig\":\"10\",\"rebateType\":\"integral\",\"userId\":\"xiaofuge\"},\"id\":\"79924892493\",\"timestamp\":1714557266870}','completed','2024-05-01 17:54:27','2024-05-01 17:54:27'),
++	(139,'xiaofuge','send_award','90576859616','{\"data\":{\"awardId\":104,\"awardTitle\":\"小米台灯\",\"userId\":\"xiaofuge\"},\"id\":\"90576859616\",\"timestamp\":1714698137578}','completed','2024-05-03 09:02:17','2024-05-03 09:02:17'),
++	(140,'xiaofuge','send_award','65620335186','{\"data\":{\"awardId\":101,\"awardTitle\":\"随机积分\",\"userId\":\"xiaofuge\"},\"id\":\"65620335186\",\"timestamp\":1714698596791}','completed','2024-05-03 09:09:57','2024-05-03 09:09:57'),
++	(141,'xiaofuge','send_award','37556739286','{\"data\":{\"awardId\":102,\"awardTitle\":\"OpenAI会员卡\",\"userId\":\"xiaofuge\"},\"id\":\"37556739286\",\"timestamp\":1714698634894}','completed','2024-05-03 09:10:35','2024-05-03 09:10:35'),
++	(142,'xiaofuge','send_award','55348135802','{\"data\":{\"awardId\":102,\"awardTitle\":\"OpenAI会员卡\",\"userId\":\"xiaofuge\"},\"id\":\"55348135802\",\"timestamp\":1714698697948}','completed','2024-05-03 09:11:38','2024-05-03 09:11:38'),
++	(143,'xiaofuge','send_rebate','72638302928','{\"data\":{\"bizId\":\"xiaofuge_sku_20240503\",\"rebateConfig\":\"9011\",\"rebateType\":\"sku\",\"userId\":\"xiaofuge\"},\"id\":\"72638302928\",\"timestamp\":1714714122098}','completed','2024-05-03 13:28:42','2024-05-03 13:28:42'),
++	(144,'xiaofuge','send_rebate','72714070579','{\"data\":{\"bizId\":\"xiaofuge_integral_20240503\",\"rebateConfig\":\"10\",\"rebateType\":\"integral\",\"userId\":\"xiaofuge\"},\"id\":\"72714070579\",\"timestamp\":1714714122101}','completed','2024-05-03 13:28:42','2024-05-03 13:28:42');
+ 
+ /*!40000 ALTER TABLE `task` ENABLE KEYS */;
+ UNLOCK TABLES;
+@@ -486,7 +566,32 @@ VALUES
+ 	(82,'xiaofuge',100301,100006,'410701479648',101,'随机积分','2024-04-27 05:39:18','create','2024-04-27 13:39:18','2024-04-27 13:39:18'),
+ 	(83,'xiaofuge',100301,100006,'521226371540',101,'随机积分','2024-04-27 06:59:56','create','2024-04-27 14:59:56','2024-04-27 14:59:56'),
+ 	(84,'xiaofuge',100301,100006,'167000751553',102,'OpenAI会员卡','2024-04-27 07:00:14','create','2024-04-27 15:00:14','2024-04-27 15:00:14'),
+-	(85,'xiaofuge',100301,100006,'685179511666',104,'小米台灯','2024-04-27 07:00:23','create','2024-04-27 15:00:22','2024-04-27 15:00:22');
++	(85,'xiaofuge',100301,100006,'685179511666',104,'小米台灯','2024-04-27 07:00:23','create','2024-04-27 15:00:22','2024-04-27 15:00:22'),
++	(86,'xiaofuge',100301,100006,'308424817839',108,'暴走玩偶','2024-05-01 06:57:39','create','2024-05-01 14:57:39','2024-05-01 14:57:39'),
++	(87,'xiaofuge',100301,100006,'116865823300',101,'随机积分','2024-05-01 06:58:09','create','2024-05-01 14:58:08','2024-05-01 14:58:08'),
++	(88,'xiaofuge',100301,100006,'272157347851',107,'小霸王游戏机','2024-05-01 06:59:33','create','2024-05-01 14:59:33','2024-05-01 14:59:33'),
++	(89,'xiaofuge',100301,100006,'400772556300',103,'支付优惠券','2024-05-01 06:59:33','create','2024-05-01 14:59:33','2024-05-01 14:59:33'),
++	(90,'xiaofuge',100301,100006,'494705137752',101,'随机积分','2024-05-01 06:59:33','create','2024-05-01 14:59:33','2024-05-01 14:59:33'),
++	(91,'xiaofuge',100301,100006,'728609897262',106,'轻奢办公椅','2024-05-01 06:59:34','create','2024-05-01 14:59:33','2024-05-01 14:59:33'),
++	(92,'xiaofuge',100301,100006,'085750418120',104,'小米台灯','2024-05-01 06:59:34','create','2024-05-01 14:59:33','2024-05-01 14:59:33'),
++	(93,'xiaofuge',100301,100006,'884615410376',107,'小霸王游戏机','2024-05-01 06:59:34','create','2024-05-01 14:59:33','2024-05-01 14:59:33'),
++	(94,'xiaofuge',100301,100006,'380693771158',107,'小霸王游戏机','2024-05-01 06:59:34','create','2024-05-01 14:59:33','2024-05-01 14:59:33'),
++	(95,'xiaofuge',100301,100006,'801793933954',103,'支付优惠券','2024-05-01 06:59:34','create','2024-05-01 14:59:33','2024-05-01 14:59:33'),
++	(96,'xiaofuge',100301,100006,'153569048026',108,'暴走玩偶','2024-05-01 06:59:34','create','2024-05-01 14:59:33','2024-05-01 14:59:33'),
++	(97,'xiaofuge',100301,100006,'239541957386',108,'暴走玩偶','2024-05-01 06:59:34','create','2024-05-01 14:59:33','2024-05-01 14:59:33'),
++	(98,'xiaofuge',100301,100006,'417247136950',108,'暴走玩偶','2024-05-01 06:59:34','create','2024-05-01 14:59:34','2024-05-01 14:59:34'),
++	(99,'xiaofuge',100301,100006,'556248667355',107,'小霸王游戏机','2024-05-01 06:59:34','create','2024-05-01 14:59:34','2024-05-01 14:59:34'),
++	(100,'xiaofuge',100301,100006,'828955445464',107,'小霸王游戏机','2024-05-01 06:59:34','create','2024-05-01 14:59:34','2024-05-01 14:59:34'),
++	(101,'xiaofuge',100301,100006,'756110942449',102,'OpenAI会员卡','2024-05-01 06:59:34','create','2024-05-01 14:59:34','2024-05-01 14:59:34'),
++	(102,'xiaofuge',100301,100006,'440069371435',101,'随机积分','2024-05-01 06:59:34','create','2024-05-01 14:59:34','2024-05-01 14:59:34'),
++	(103,'xiaofuge',100301,100006,'421594084633',108,'暴走玩偶','2024-05-01 06:59:34','create','2024-05-01 14:59:34','2024-05-01 14:59:34'),
++	(104,'xiaofuge',100301,100006,'500905040429',104,'小米台灯','2024-05-01 06:59:34','create','2024-05-01 14:59:34','2024-05-01 14:59:34'),
++	(105,'xiaofuge',100301,100006,'712386571628',101,'随机积分','2024-05-01 06:59:34','create','2024-05-01 14:59:34','2024-05-01 14:59:34'),
++	(106,'xiaofuge',100301,100006,'095923542021',108,'暴走玩偶','2024-05-01 06:59:35','create','2024-05-01 14:59:34','2024-05-01 14:59:34'),
++	(107,'xiaofuge',100301,100006,'306233708878',104,'小米台灯','2024-05-03 01:02:18','create','2024-05-03 09:02:17','2024-05-03 09:02:17'),
++	(108,'xiaofuge',100301,100006,'690124733440',101,'随机积分','2024-05-03 01:09:57','create','2024-05-03 09:09:57','2024-05-03 09:09:57'),
++	(109,'xiaofuge',100301,100006,'190487161872',102,'OpenAI会员卡','2024-05-03 01:10:35','create','2024-05-03 09:10:35','2024-05-03 09:10:35'),
++	(110,'xiaofuge',100301,100006,'693117324295',102,'OpenAI会员卡','2024-05-03 01:11:38','create','2024-05-03 09:11:38','2024-05-03 09:11:38');
+ 
+ /*!40000 ALTER TABLE `user_award_record_001` ENABLE KEYS */;
+ UNLOCK TABLES;
+@@ -557,7 +662,8 @@ CREATE TABLE `user_behavior_rebate_order_000` (
+   `rebate_desc` varchar(128) NOT NULL COMMENT '返利描述',
+   `rebate_type` varchar(16) NOT NULL COMMENT '返利类型（sku 活动库存充值商品、integral 用户活动积分）',
+   `rebate_config` varchar(32) NOT NULL COMMENT '返利配置【sku值，积分值】',
+-  `biz_id` varchar(64) NOT NULL COMMENT '业务ID - 拼接的唯一值',
++  `out_business_no` varchar(64) NOT NULL COMMENT '业务仿重ID - 外部透传，方便查询使用',
++  `biz_id` varchar(128) NOT NULL COMMENT '业务ID - 拼接的唯一值。拼接 out_business_no + 自身枚举',
+   `create_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+   `update_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+   PRIMARY KEY (`id`),
+@@ -581,7 +687,8 @@ CREATE TABLE `user_behavior_rebate_order_001` (
+   `rebate_desc` varchar(128) NOT NULL COMMENT '返利描述',
+   `rebate_type` varchar(16) NOT NULL COMMENT '返利类型（sku 活动库存充值商品、integral 用户活动积分）',
+   `rebate_config` varchar(32) NOT NULL COMMENT '返利配置【sku值，积分值】',
+-  `biz_id` varchar(64) NOT NULL COMMENT '业务ID - 拼接的唯一值',
++  `out_business_no` varchar(64) NOT NULL COMMENT '业务仿重ID - 外部透传，方便查询使用',
++  `biz_id` varchar(128) NOT NULL COMMENT '业务ID - 拼接的唯一值。拼接 out_business_no + 自身枚举',
+   `create_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+   `update_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+   PRIMARY KEY (`id`),
+@@ -593,10 +700,10 @@ CREATE TABLE `user_behavior_rebate_order_001` (
+ LOCK TABLES `user_behavior_rebate_order_001` WRITE;
+ /*!40000 ALTER TABLE `user_behavior_rebate_order_001` DISABLE KEYS */;
+ 
+-INSERT INTO `user_behavior_rebate_order_001` (`id`, `user_id`, `order_id`, `behavior_type`, `rebate_desc`, `rebate_type`, `rebate_config`, `biz_id`, `create_time`, `update_time`)
++INSERT INTO `user_behavior_rebate_order_001` (`id`, `user_id`, `order_id`, `behavior_type`, `rebate_desc`, `rebate_type`, `rebate_config`, `out_business_no`, `biz_id`, `create_time`, `update_time`)
+ VALUES
+-	(1,'xiaofuge','833814327101','sign','签到返利','sku','9011','xiaofuge_sku_20240430','2024-04-30 18:01:32','2024-04-30 18:01:32'),
+-	(3,'xiaofuge','509399206701','sign','签到返利-积分','integral','10','xiaofuge_integral_20240430','2024-04-30 18:05:44','2024-04-30 18:05:44');
++	(5,'xiaofuge','630841674684','sign','签到返利-sku额度','sku','9011','20240503','xiaofuge_sku_20240503','2024-05-03 13:28:42','2024-05-03 13:28:42'),
++	(6,'xiaofuge','552413408368','sign','签到返利-积分','integral','10','20240503','xiaofuge_integral_20240503','2024-05-03 13:28:42','2024-05-03 13:28:42');
+ 
+ /*!40000 ALTER TABLE `user_behavior_rebate_order_001` ENABLE KEYS */;
+ UNLOCK TABLES;
+@@ -615,7 +722,8 @@ CREATE TABLE `user_behavior_rebate_order_002` (
+   `rebate_desc` varchar(128) NOT NULL COMMENT '返利描述',
+   `rebate_type` varchar(16) NOT NULL COMMENT '返利类型（sku 活动库存充值商品、integral 用户活动积分）',
+   `rebate_config` varchar(32) NOT NULL COMMENT '返利配置【sku值，积分值】',
+-  `biz_id` varchar(64) NOT NULL COMMENT '业务ID - 拼接的唯一值',
++  `out_business_no` varchar(64) NOT NULL COMMENT '业务仿重ID - 外部透传，方便查询使用',
++  `biz_id` varchar(128) NOT NULL COMMENT '业务ID - 拼接的唯一值。拼接 out_business_no + 自身枚举',
+   `create_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+   `update_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+   PRIMARY KEY (`id`),
+@@ -639,7 +747,8 @@ CREATE TABLE `user_behavior_rebate_order_003` (
+   `rebate_desc` varchar(128) NOT NULL COMMENT '返利描述',
+   `rebate_type` varchar(16) NOT NULL COMMENT '返利类型（sku 活动库存充值商品、integral 用户活动积分）',
+   `rebate_config` varchar(32) NOT NULL COMMENT '返利配置【sku值，积分值】',
+-  `biz_id` varchar(64) NOT NULL COMMENT '业务ID - 拼接的唯一值',
++  `out_business_no` varchar(64) NOT NULL COMMENT '业务仿重ID - 外部透传，方便查询使用',
++  `biz_id` varchar(128) NOT NULL COMMENT '业务ID - 拼接的唯一值。拼接 out_business_no + 自身枚举',
+   `create_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+   `update_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+   PRIMARY KEY (`id`),
+@@ -745,7 +854,32 @@ VALUES
+ 	(48,'xiaofuge',100301,'测试活动',100006,'410701479648','2024-04-27 05:39:18','used','2024-04-27 13:39:18','2024-04-27 13:39:18'),
+ 	(49,'xiaofuge',100301,'测试活动',100006,'521226371540','2024-04-27 06:59:56','used','2024-04-27 14:59:56','2024-04-27 14:59:56'),
+ 	(50,'xiaofuge',100301,'测试活动',100006,'167000751553','2024-04-27 07:00:14','used','2024-04-27 15:00:14','2024-04-27 15:00:14'),
+-	(51,'xiaofuge',100301,'测试活动',100006,'685179511666','2024-04-27 07:00:23','used','2024-04-27 15:00:22','2024-04-27 15:00:22');
++	(51,'xiaofuge',100301,'测试活动',100006,'685179511666','2024-04-27 07:00:23','used','2024-04-27 15:00:22','2024-04-27 15:00:22'),
++	(52,'xiaofuge',100301,'测试活动',100006,'308424817839','2024-05-01 06:33:42','used','2024-05-01 14:33:43','2024-05-01 14:57:39'),
++	(53,'xiaofuge',100301,'测试活动',100006,'116865823300','2024-05-01 06:58:08','used','2024-05-01 14:58:08','2024-05-01 14:58:08'),
++	(54,'xiaofuge',100301,'测试活动',100006,'272157347851','2024-05-01 06:59:32','used','2024-05-01 14:59:32','2024-05-01 14:59:33'),
++	(55,'xiaofuge',100301,'测试活动',100006,'400772556300','2024-05-01 06:59:33','used','2024-05-01 14:59:33','2024-05-01 14:59:33'),
++	(56,'xiaofuge',100301,'测试活动',100006,'494705137752','2024-05-01 06:59:33','used','2024-05-01 14:59:33','2024-05-01 14:59:33'),
++	(57,'xiaofuge',100301,'测试活动',100006,'728609897262','2024-05-01 06:59:34','used','2024-05-01 14:59:33','2024-05-01 14:59:33'),
++	(58,'xiaofuge',100301,'测试活动',100006,'085750418120','2024-05-01 06:59:34','used','2024-05-01 14:59:33','2024-05-01 14:59:33'),
++	(59,'xiaofuge',100301,'测试活动',100006,'884615410376','2024-05-01 06:59:34','used','2024-05-01 14:59:33','2024-05-01 14:59:33'),
++	(60,'xiaofuge',100301,'测试活动',100006,'380693771158','2024-05-01 06:59:34','used','2024-05-01 14:59:33','2024-05-01 14:59:33'),
++	(61,'xiaofuge',100301,'测试活动',100006,'801793933954','2024-05-01 06:59:34','used','2024-05-01 14:59:33','2024-05-01 14:59:33'),
++	(62,'xiaofuge',100301,'测试活动',100006,'153569048026','2024-05-01 06:59:34','used','2024-05-01 14:59:33','2024-05-01 14:59:33'),
++	(63,'xiaofuge',100301,'测试活动',100006,'239541957386','2024-05-01 06:59:34','used','2024-05-01 14:59:33','2024-05-01 14:59:33'),
++	(64,'xiaofuge',100301,'测试活动',100006,'417247136950','2024-05-01 06:59:34','used','2024-05-01 14:59:33','2024-05-01 14:59:34'),
++	(65,'xiaofuge',100301,'测试活动',100006,'556248667355','2024-05-01 06:59:34','used','2024-05-01 14:59:34','2024-05-01 14:59:34'),
++	(66,'xiaofuge',100301,'测试活动',100006,'828955445464','2024-05-01 06:59:34','used','2024-05-01 14:59:34','2024-05-01 14:59:34'),
++	(67,'xiaofuge',100301,'测试活动',100006,'756110942449','2024-05-01 06:59:34','used','2024-05-01 14:59:34','2024-05-01 14:59:34'),
++	(68,'xiaofuge',100301,'测试活动',100006,'440069371435','2024-05-01 06:59:34','used','2024-05-01 14:59:34','2024-05-01 14:59:34'),
++	(69,'xiaofuge',100301,'测试活动',100006,'421594084633','2024-05-01 06:59:34','used','2024-05-01 14:59:34','2024-05-01 14:59:34'),
++	(70,'xiaofuge',100301,'测试活动',100006,'500905040429','2024-05-01 06:59:34','used','2024-05-01 14:59:34','2024-05-01 14:59:34'),
++	(71,'xiaofuge',100301,'测试活动',100006,'712386571628','2024-05-01 06:59:34','used','2024-05-01 14:59:34','2024-05-01 14:59:34'),
++	(72,'xiaofuge',100301,'测试活动',100006,'095923542021','2024-05-01 06:59:34','used','2024-05-01 14:59:34','2024-05-01 14:59:34'),
++	(73,'xiaofuge',100301,'测试活动',100006,'306233708878','2024-05-03 01:00:27','used','2024-05-03 09:00:28','2024-05-03 09:02:17'),
++	(74,'xiaofuge',100301,'测试活动',100006,'690124733440','2024-05-03 01:09:42','used','2024-05-03 09:09:42','2024-05-03 09:09:57'),
++	(75,'xiaofuge',100301,'测试活动',100006,'190487161872','2024-05-03 01:10:28','used','2024-05-03 09:10:28','2024-05-03 09:10:35'),
++	(76,'xiaofuge',100301,'测试活动',100006,'693117324295','2024-05-03 01:11:32','used','2024-05-03 09:11:32','2024-05-03 09:11:38');
+ 
+ /*!40000 ALTER TABLE `user_raffle_order_001` ENABLE KEYS */;
+ UNLOCK TABLES;
+diff --git a/docs/dev-ops/mysql/sql/big_market_02.sql b/docs/dev-ops/mysql/sql/big_market_02.sql
+index d1f2c4c..19516e9 100644
+--- a/docs/dev-ops/mysql/sql/big_market_02.sql
++++ b/docs/dev-ops/mysql/sql/big_market_02.sql
+@@ -7,7 +7,7 @@
+ #
+ # 主机: 127.0.0.1 (MySQL 5.6.39)
+ # 数据库: big_market_02
+-# 生成时间: 2024-04-30 10:18:59 +0000
++# 生成时间: 2024-05-03 08:37:11 +0000
+ # ************************************************************
+ 
+ 
+@@ -48,7 +48,8 @@ LOCK TABLES `raffle_activity_account` WRITE;
+ 
+ INSERT INTO `raffle_activity_account` (`id`, `user_id`, `activity_id`, `total_count`, `total_count_surplus`, `day_count`, `day_count_surplus`, `month_count`, `month_count_surplus`, `create_time`, `update_time`)
+ VALUES
+-	(2,'xiaofuge',100301,4,3,4,3,4,3,'2024-03-23 12:40:56','2024-03-23 13:16:40');
++	(2,'xiaofuge',100301,4,3,4,3,4,3,'2024-03-23 12:40:56','2024-03-23 13:16:40'),
++	(3,'xiaofuge1',100301,10,10,10,10,10,10,'2024-05-03 16:01:44','2024-05-03 16:01:44');
+ 
+ /*!40000 ALTER TABLE `raffle_activity_account` ENABLE KEYS */;
+ UNLOCK TABLES;
+@@ -121,6 +122,15 @@ CREATE TABLE `raffle_activity_order_000` (
+   KEY `idx_user_id_activity_id` (`user_id`,`activity_id`,`state`)
+ ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='抽奖活动单';
+ 
++LOCK TABLES `raffle_activity_order_000` WRITE;
++/*!40000 ALTER TABLE `raffle_activity_order_000` DISABLE KEYS */;
++
++INSERT INTO `raffle_activity_order_000` (`id`, `user_id`, `sku`, `activity_id`, `activity_name`, `strategy_id`, `order_id`, `order_time`, `total_count`, `day_count`, `month_count`, `state`, `out_business_no`, `create_time`, `update_time`)
++VALUES
++	(1,'xiaofuge1',9011,100301,'测试活动',100006,'831917125310','2024-05-03 08:01:44',10,10,10,'completed','xiaofuge1_sku_20240503','2024-05-03 16:01:44','2024-05-03 16:01:44');
++
++/*!40000 ALTER TABLE `raffle_activity_order_000` ENABLE KEYS */;
++UNLOCK TABLES;
+ 
+ 
+ # 转储表 raffle_activity_order_001
+@@ -239,6 +249,16 @@ CREATE TABLE `task` (
+   KEY `idx_create_time` (`update_time`)
+ ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='任务表，发送MQ';
+ 
++LOCK TABLES `task` WRITE;
++/*!40000 ALTER TABLE `task` DISABLE KEYS */;
++
++INSERT INTO `task` (`id`, `user_id`, `topic`, `message_id`, `message`, `state`, `create_time`, `update_time`)
++VALUES
++	(1,'xiaofuge1','send_rebate','54825531405','{\"data\":{\"bizId\":\"xiaofuge1_sku_20240503\",\"rebateConfig\":\"9011\",\"rebateType\":\"sku\",\"userId\":\"xiaofuge1\"},\"id\":\"54825531405\",\"timestamp\":1714723302543}','completed','2024-05-03 16:01:43','2024-05-03 16:01:43'),
++	(2,'xiaofuge1','send_rebate','43189560552','{\"data\":{\"bizId\":\"xiaofuge1_integral_20240503\",\"rebateConfig\":\"10\",\"rebateType\":\"integral\",\"userId\":\"xiaofuge1\"},\"id\":\"43189560552\",\"timestamp\":1714723302551}','completed','2024-05-03 16:01:43','2024-05-03 16:01:43');
++
++/*!40000 ALTER TABLE `task` ENABLE KEYS */;
++UNLOCK TABLES;
+ 
+ 
+ # 转储表 user_award_record_000
+@@ -345,12 +365,12 @@ CREATE TABLE `user_award_record_003` (
+ 
+ 
+ 
+-# 转储表 user_behavior_rebate_order_001
++# 转储表 user_behavior_rebate_order_000
+ # ------------------------------------------------------------
+ 
+-DROP TABLE IF EXISTS `user_behavior_rebate_order_001`;
++DROP TABLE IF EXISTS `user_behavior_rebate_order_000`;
+ 
+-CREATE TABLE `user_behavior_rebate_order_001` (
++CREATE TABLE `user_behavior_rebate_order_000` (
+   `id` int(11) unsigned NOT NULL AUTO_INCREMENT COMMENT '自增ID',
+   `user_id` varchar(32) NOT NULL COMMENT '用户ID',
+   `order_id` varchar(12) NOT NULL COMMENT '订单ID',
+@@ -358,7 +378,8 @@ CREATE TABLE `user_behavior_rebate_order_001` (
+   `rebate_desc` varchar(128) NOT NULL COMMENT '返利描述',
+   `rebate_type` varchar(16) NOT NULL COMMENT '返利类型（sku 活动库存充值商品、integral 用户活动积分）',
+   `rebate_config` varchar(32) NOT NULL COMMENT '返利配置【sku值，积分值】',
+-  `biz_id` varchar(64) NOT NULL COMMENT '业务ID - 拼接的唯一值',
++  `out_business_no` varchar(64) NOT NULL COMMENT '业务仿重ID - 外部透传，方便查询使用',
++  `biz_id` varchar(128) NOT NULL COMMENT '业务ID - 拼接的唯一值。拼接 out_business_no + 自身枚举',
+   `create_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+   `update_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+   PRIMARY KEY (`id`),
+@@ -367,14 +388,24 @@ CREATE TABLE `user_behavior_rebate_order_001` (
+   KEY `idx_user_id` (`user_id`)
+ ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='用户行为返利流水订单表';
+ 
++LOCK TABLES `user_behavior_rebate_order_000` WRITE;
++/*!40000 ALTER TABLE `user_behavior_rebate_order_000` DISABLE KEYS */;
+ 
++INSERT INTO `user_behavior_rebate_order_000` (`id`, `user_id`, `order_id`, `behavior_type`, `rebate_desc`, `rebate_type`, `rebate_config`, `out_business_no`, `biz_id`, `create_time`, `update_time`)
++VALUES
++	(5,'xiaofuge1','883971522401','sign','签到返利-sku额度','sku','9011','20240503','xiaofuge1_sku_20240503','2024-05-03 16:01:42','2024-05-03 16:01:42'),
++	(6,'xiaofuge1','995944930386','sign','签到返利-积分','integral','10','20240503','xiaofuge1_integral_20240503','2024-05-03 16:01:43','2024-05-03 16:01:43');
+ 
+-# 转储表 user_behavior_rebate_order_002
++/*!40000 ALTER TABLE `user_behavior_rebate_order_000` ENABLE KEYS */;
++UNLOCK TABLES;
++
++
++# 转储表 user_behavior_rebate_order_001
+ # ------------------------------------------------------------
+ 
+-DROP TABLE IF EXISTS `user_behavior_rebate_order_002`;
++DROP TABLE IF EXISTS `user_behavior_rebate_order_001`;
+ 
+-CREATE TABLE `user_behavior_rebate_order_002` (
++CREATE TABLE `user_behavior_rebate_order_001` (
+   `id` int(11) unsigned NOT NULL AUTO_INCREMENT COMMENT '自增ID',
+   `user_id` varchar(32) NOT NULL COMMENT '用户ID',
+   `order_id` varchar(12) NOT NULL COMMENT '订单ID',
+@@ -382,7 +413,8 @@ CREATE TABLE `user_behavior_rebate_order_002` (
+   `rebate_desc` varchar(128) NOT NULL COMMENT '返利描述',
+   `rebate_type` varchar(16) NOT NULL COMMENT '返利类型（sku 活动库存充值商品、integral 用户活动积分）',
+   `rebate_config` varchar(32) NOT NULL COMMENT '返利配置【sku值，积分值】',
+-  `biz_id` varchar(64) NOT NULL COMMENT '业务ID - 拼接的唯一值',
++  `out_business_no` varchar(64) NOT NULL COMMENT '业务仿重ID - 外部透传，方便查询使用',
++  `biz_id` varchar(128) NOT NULL COMMENT '业务ID - 拼接的唯一值。拼接 out_business_no + 自身枚举',
+   `create_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+   `update_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+   PRIMARY KEY (`id`),
+@@ -393,12 +425,12 @@ CREATE TABLE `user_behavior_rebate_order_002` (
+ 
+ 
+ 
+-# 转储表 user_behavior_rebate_order_003
++# 转储表 user_behavior_rebate_order_002
+ # ------------------------------------------------------------
+ 
+-DROP TABLE IF EXISTS `user_behavior_rebate_order_003`;
++DROP TABLE IF EXISTS `user_behavior_rebate_order_002`;
+ 
+-CREATE TABLE `user_behavior_rebate_order_003` (
++CREATE TABLE `user_behavior_rebate_order_002` (
+   `id` int(11) unsigned NOT NULL AUTO_INCREMENT COMMENT '自增ID',
+   `user_id` varchar(32) NOT NULL COMMENT '用户ID',
+   `order_id` varchar(12) NOT NULL COMMENT '订单ID',
+@@ -406,7 +438,8 @@ CREATE TABLE `user_behavior_rebate_order_003` (
+   `rebate_desc` varchar(128) NOT NULL COMMENT '返利描述',
+   `rebate_type` varchar(16) NOT NULL COMMENT '返利类型（sku 活动库存充值商品、integral 用户活动积分）',
+   `rebate_config` varchar(32) NOT NULL COMMENT '返利配置【sku值，积分值】',
+-  `biz_id` varchar(64) NOT NULL COMMENT '业务ID - 拼接的唯一值',
++  `out_business_no` varchar(64) NOT NULL COMMENT '业务仿重ID - 外部透传，方便查询使用',
++  `biz_id` varchar(128) NOT NULL COMMENT '业务ID - 拼接的唯一值。拼接 out_business_no + 自身枚举',
+   `create_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+   `update_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+   PRIMARY KEY (`id`),
+@@ -417,12 +450,12 @@ CREATE TABLE `user_behavior_rebate_order_003` (
+ 
+ 
+ 
+-# 转储表 user_behavior_rebate_order_004
++# 转储表 user_behavior_rebate_order_003
+ # ------------------------------------------------------------
+ 
+-DROP TABLE IF EXISTS `user_behavior_rebate_order_004`;
++DROP TABLE IF EXISTS `user_behavior_rebate_order_003`;
+ 
+-CREATE TABLE `user_behavior_rebate_order_004` (
++CREATE TABLE `user_behavior_rebate_order_003` (
+   `id` int(11) unsigned NOT NULL AUTO_INCREMENT COMMENT '自增ID',
+   `user_id` varchar(32) NOT NULL COMMENT '用户ID',
+   `order_id` varchar(12) NOT NULL COMMENT '订单ID',
+@@ -430,7 +463,8 @@ CREATE TABLE `user_behavior_rebate_order_004` (
+   `rebate_desc` varchar(128) NOT NULL COMMENT '返利描述',
+   `rebate_type` varchar(16) NOT NULL COMMENT '返利类型（sku 活动库存充值商品、integral 用户活动积分）',
+   `rebate_config` varchar(32) NOT NULL COMMENT '返利配置【sku值，积分值】',
+-  `biz_id` varchar(64) NOT NULL COMMENT '业务ID - 拼接的唯一值',
++  `out_business_no` varchar(64) NOT NULL COMMENT '业务仿重ID - 外部透传，方便查询使用',
++  `biz_id` varchar(128) NOT NULL COMMENT '业务ID - 拼接的唯一值。拼接 out_business_no + 自身枚举',
+   `create_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+   `update_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+   PRIMARY KEY (`id`),
