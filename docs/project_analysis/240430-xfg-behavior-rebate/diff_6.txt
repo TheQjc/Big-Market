@@ -1,0 +1,18 @@
+commit 9335439b6f63298d5dd1643dee5fefeeca4e672f
+Author: 小傅哥 <184172133@qq.com>
+Date:   Mon Apr 29 09:29:05 2024 +0800
+
+    fix：补充注释
+
+diff --git a/big-market-domain/src/main/java/cn/bugstack/domain/strategy/service/rule/tree/impl/RuleStockLogicTreeNode.java b/big-market-domain/src/main/java/cn/bugstack/domain/strategy/service/rule/tree/impl/RuleStockLogicTreeNode.java
+index 08e8260..111ecda 100644
+--- a/big-market-domain/src/main/java/cn/bugstack/domain/strategy/service/rule/tree/impl/RuleStockLogicTreeNode.java
++++ b/big-market-domain/src/main/java/cn/bugstack/domain/strategy/service/rule/tree/impl/RuleStockLogicTreeNode.java
+@@ -42,6 +42,7 @@ public class RuleStockLogicTreeNode implements ILogicTreeNode {
+                     .awardId(awardId)
+                     .build());
+ 
++            // 注意；根据数据库表中配置走不同的节点。目前数据库配置 ALLOW 是走到下一个节点。
+             return DefaultTreeFactory.TreeActionEntity.builder()
+                     .ruleLogicCheckType(RuleLogicCheckTypeVO.TAKE_OVER)
+                     .strategyAwardVO(DefaultTreeFactory.StrategyAwardVO.builder()
