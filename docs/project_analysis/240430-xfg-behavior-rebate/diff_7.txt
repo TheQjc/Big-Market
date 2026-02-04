@@ -1,0 +1,1210 @@
+commit 8ff2160cea5e4155e5a72b4c732bbcd70869fbb6
+Author: 小傅哥 <184172133@qq.com>
+Date:   Wed May 1 11:46:49 2024 +0800
+
+    feat：营销服务 第22节：用户行为返利入账
+
+diff --git a/big-market-app/src/main/resources/application-dev.yml b/big-market-app/src/main/resources/application-dev.yml
+index f6debbb..8fc6fc9 100644
+--- a/big-market-app/src/main/resources/application-dev.yml
++++ b/big-market-app/src/main/resources/application-dev.yml
+@@ -27,6 +27,7 @@ spring:
+     topic:
+       activity_sku_stock_zero: activity_sku_stock_zero
+       send_award: send_award
++      send_rebate: send_rebate
+ 
+ # 线程池配置
+ thread:
+diff --git a/big-market-app/src/main/resources/mybatis/mapper/daily_behavior_rebate_mapper.xml b/big-market-app/src/main/resources/mybatis/mapper/daily_behavior_rebate_mapper.xml
+new file mode 100644
+index 0000000..53380d7
+--- /dev/null
++++ b/big-market-app/src/main/resources/mybatis/mapper/daily_behavior_rebate_mapper.xml
+@@ -0,0 +1,22 @@
++<?xml version="1.0" encoding="UTF-8"?>
++<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
++<mapper namespace="cn.bugstack.infrastructure.persistent.dao.IDailyBehaviorRebateDao">
++
++    <resultMap id="dataMap" type="cn.bugstack.infrastructure.persistent.po.DailyBehaviorRebate">
++        <id column="id" property="id"/>
++        <result column="behavior_type" property="behaviorType"/>
++        <result column="rebate_desc" property="rebateDesc"/>
++        <result column="rebate_type" property="rebateType"/>
++        <result column="rebate_config" property="rebateConfig"/>
++        <result column="state" property="state"/>
++        <result column="create_time" property="createTime"/>
++        <result column="update_time" property="updateTime"/>
++    </resultMap>
++
++    <select id="queryDailyBehaviorRebateByBehaviorType" parameterType="java.lang.String" resultMap="dataMap">
++        select behavior_type, rebate_desc, rebate_type, rebate_config
++        from daily_behavior_rebate
++        where state = 'open'
++    </select>
++
++</mapper>
+\ No newline at end of file
+diff --git a/big-market-app/src/main/resources/mybatis/mapper/user_behavior_rebate_order_mapper.xml b/big-market-app/src/main/resources/mybatis/mapper/user_behavior_rebate_order_mapper.xml
+new file mode 100644
+index 0000000..0f797c4
+--- /dev/null
++++ b/big-market-app/src/main/resources/mybatis/mapper/user_behavior_rebate_order_mapper.xml
+@@ -0,0 +1,26 @@
++<?xml version="1.0" encoding="UTF-8"?>
++<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
++<mapper namespace="cn.bugstack.infrastructure.persistent.dao.IUserBehaviorRebateOrderDao">
++
++    <resultMap id="dataMap" type="cn.bugstack.infrastructure.persistent.po.UserBehaviorRebateOrder">
++        <id column="id" property="id"/>
++        <result column="user_id" property="userId"/>
++        <result column="order_id" property="orderId"/>
++        <result column="behavior_type" property="behaviorType"/>
++        <result column="rebate_desc" property="rebateDesc"/>
++        <result column="rebate_type" property="rebateType"/>
++        <result column="rebate_config" property="rebateConfig"/>
++        <result column="biz_id" property="bizId"/>
++        <result column="create_time" property="createTime"/>
++        <result column="update_time" property="updateTime"/>
++    </resultMap>
++
++    <insert id="insert" parameterType="cn.bugstack.infrastructure.persistent.po.UserBehaviorRebateOrder">
++        insert into user_behavior_rebate_order(
++        user_id, order_id, behavior_type, rebate_desc, rebate_type, rebate_config, biz_id, create_time, update_time
++        ) values(
++        #{userId}, #{orderId}, #{behaviorType}, #{rebateDesc}, #{rebateType}, #{rebateConfig}, #{bizId}, now(), now()
++        )
++    </insert>
++
++</mapper>
+\ No newline at end of file
+diff --git a/big-market-app/src/test/java/cn/bugstack/test/domain/rebate/BehaviorRebateServiceTest.java b/big-market-app/src/test/java/cn/bugstack/test/domain/rebate/BehaviorRebateServiceTest.java
+new file mode 100644
+index 0000000..7dfb6d4
+--- /dev/null
++++ b/big-market-app/src/test/java/cn/bugstack/test/domain/rebate/BehaviorRebateServiceTest.java
+@@ -0,0 +1,42 @@
++package cn.bugstack.test.domain.rebate;
++
++import cn.bugstack.domain.rebate.model.entity.BehaviorEntity;
++import cn.bugstack.domain.rebate.model.valobj.BehaviorTypeVO;
++import cn.bugstack.domain.rebate.service.IBehaviorRebateService;
++import com.alibaba.fastjson2.JSON;
++import lombok.extern.slf4j.Slf4j;
++import org.junit.Test;
++import org.junit.runner.RunWith;
++import org.springframework.boot.test.context.SpringBootTest;
++import org.springframework.test.context.junit4.SpringRunner;
++
++import javax.annotation.Resource;
++import java.util.List;
++
++/**
++ * @author Fuzhengwei bugstack.cn @小傅哥
++ * @description 行为返利单测
++ * @create 2024-04-30 17:53
++ */
++@Slf4j
++@RunWith(SpringRunner.class)
++@SpringBootTest
++public class BehaviorRebateServiceTest {
++
++    @Resource
++    private IBehaviorRebateService behaviorRebateService;
++
++    @Test
++    public void test_createOrder() {
++        BehaviorEntity behaviorEntity = new BehaviorEntity();
++        behaviorEntity.setUserId("xiaofuge");
++        behaviorEntity.setBehaviorTypeVO(BehaviorTypeVO.SIGN);
++        // 重复的 OutBusinessNo 会报错唯一索引冲突，这也是保证幂等的手段，确保不会多记账
++        behaviorEntity.setOutBusinessNo("20240429");
++
++        List<String> orderIds = behaviorRebateService.createOrder(behaviorEntity);
++        log.info("请求参数：{}", JSON.toJSONString(behaviorEntity));
++        log.info("测试结果：{}", JSON.toJSONString(orderIds));
++    }
++
++}
+diff --git a/big-market-domain/src/main/java/cn/bugstack/domain/rebate/event/SendRebateMessageEvent.java b/big-market-domain/src/main/java/cn/bugstack/domain/rebate/event/SendRebateMessageEvent.java
+new file mode 100644
+index 0000000..146c834
+--- /dev/null
++++ b/big-market-domain/src/main/java/cn/bugstack/domain/rebate/event/SendRebateMessageEvent.java
+@@ -0,0 +1,57 @@
++package cn.bugstack.domain.rebate.event;
++
++import cn.bugstack.domain.award.event.SendAwardMessageEvent;
++import cn.bugstack.types.event.BaseEvent;
++import lombok.AllArgsConstructor;
++import lombok.Builder;
++import lombok.Data;
++import lombok.NoArgsConstructor;
++import org.apache.commons.lang3.RandomStringUtils;
++import org.springframework.beans.factory.annotation.Value;
++import org.springframework.stereotype.Component;
++
++import java.util.Date;
++
++/**
++ * @author Fuzhengwei bugstack.cn @小傅哥
++ * @description 发送返利消息事件
++ * @create 2024-04-30 15:34
++ */
++@Component
++public class SendRebateMessageEvent extends BaseEvent<SendRebateMessageEvent.RebateMessage> {
++
++    @Value("${spring.rabbitmq.topic.send_rebate}")
++    private String topic;
++
++    @Override
++    public EventMessage<RebateMessage> buildEventMessage(RebateMessage data) {
++        return EventMessage.<SendRebateMessageEvent.RebateMessage>builder()
++                .id(RandomStringUtils.randomNumeric(11))
++                .timestamp(new Date())
++                .data(data)
++                .build();
++    }
++
++    @Override
++    public String topic() {
++        return topic;
++    }
++
++    @Data
++    @Builder
++    @AllArgsConstructor
++    @NoArgsConstructor
++    public static class RebateMessage {
++        /** 用户ID */
++        private String userId;
++        /** 返利描述 */
++        private String rebateDesc;
++        /** 返利类型 */
++        private String rebateType;
++        /** 返利配置 */
++        private String rebateConfig;
++        /** 业务ID - 唯一ID，确保幂等 */
++        private String bizId;
++    }
++
++}
+diff --git a/big-market-domain/src/main/java/cn/bugstack/domain/rebate/model/aggregate/BehaviorRebateAggregate.java b/big-market-domain/src/main/java/cn/bugstack/domain/rebate/model/aggregate/BehaviorRebateAggregate.java
+new file mode 100644
+index 0000000..651079f
+--- /dev/null
++++ b/big-market-domain/src/main/java/cn/bugstack/domain/rebate/model/aggregate/BehaviorRebateAggregate.java
+@@ -0,0 +1,28 @@
++package cn.bugstack.domain.rebate.model.aggregate;
++
++import cn.bugstack.domain.rebate.model.entity.BehaviorRebateOrderEntity;
++import cn.bugstack.domain.rebate.model.entity.TaskEntity;
++import lombok.AllArgsConstructor;
++import lombok.Builder;
++import lombok.Data;
++import lombok.NoArgsConstructor;
++
++/**
++ * @author Fuzhengwei bugstack.cn @小傅哥
++ * @description 行为返利聚合对象
++ * @create 2024-04-30 15:56
++ */
++@Data
++@Builder
++@AllArgsConstructor
++@NoArgsConstructor
++public class BehaviorRebateAggregate {
++
++    /** 用户ID */
++    private String userId;
++    /** 行为返利订单实体对象 */
++    private BehaviorRebateOrderEntity behaviorRebateOrderEntity;
++    /** 任务实体对象 */
++    private TaskEntity taskEntity;
++
++}
+diff --git a/big-market-domain/src/main/java/cn/bugstack/domain/rebate/model/entity/BehaviorEntity.java b/big-market-domain/src/main/java/cn/bugstack/domain/rebate/model/entity/BehaviorEntity.java
+new file mode 100644
+index 0000000..6dc11a8
+--- /dev/null
++++ b/big-market-domain/src/main/java/cn/bugstack/domain/rebate/model/entity/BehaviorEntity.java
+@@ -0,0 +1,33 @@
++package cn.bugstack.domain.rebate.model.entity;
++
++import cn.bugstack.domain.rebate.model.valobj.BehaviorTypeVO;
++import lombok.AllArgsConstructor;
++import lombok.Builder;
++import lombok.Data;
++import lombok.NoArgsConstructor;
++
++/**
++ * @author Fuzhengwei bugstack.cn @小傅哥
++ * @description 行为实体对象
++ * @create 2024-04-30 14:29
++ */
++@Data
++@Builder
++@AllArgsConstructor
++@NoArgsConstructor
++public class BehaviorEntity {
++
++    /**
++     * 用户ID
++     */
++    private String userId;
++    /**
++     * 行为类型；sign 签到、openai_pay 支付
++     */
++    private BehaviorTypeVO behaviorTypeVO;
++    /**
++     * 业务ID；签到则是日期字符串，支付则是外部的业务ID
++     */
++    private String outBusinessNo;
++
++}
+diff --git a/big-market-domain/src/main/java/cn/bugstack/domain/rebate/model/entity/BehaviorRebateOrderEntity.java b/big-market-domain/src/main/java/cn/bugstack/domain/rebate/model/entity/BehaviorRebateOrderEntity.java
+new file mode 100644
+index 0000000..c55916b
+--- /dev/null
++++ b/big-market-domain/src/main/java/cn/bugstack/domain/rebate/model/entity/BehaviorRebateOrderEntity.java
+@@ -0,0 +1,34 @@
++package cn.bugstack.domain.rebate.model.entity;
++
++import lombok.AllArgsConstructor;
++import lombok.Builder;
++import lombok.Data;
++import lombok.NoArgsConstructor;
++
++/**
++ * @author Fuzhengwei bugstack.cn @小傅哥
++ * @description 行为返利订单实体对象
++ * @create 2024-04-30 15:57
++ */
++@Data
++@Builder
++@AllArgsConstructor
++@NoArgsConstructor
++public class BehaviorRebateOrderEntity {
++
++    /** 用户ID */
++    private String userId;
++    /** 订单ID */
++    private String orderId;
++    /** 行为类型（sign 签到、openai_pay 支付） */
++    private String behaviorType;
++    /** 返利描述 */
++    private String rebateDesc;
++    /** 返利类型（sku 活动库存充值商品、integral 用户活动积分） */
++    private String rebateType;
++    /** 返利配置【sku值，积分值】 */
++    private String rebateConfig;
++    /** 业务ID - 拼接的唯一值 */
++    private String bizId;
++
++}
+diff --git a/big-market-domain/src/main/java/cn/bugstack/domain/rebate/model/entity/TaskEntity.java b/big-market-domain/src/main/java/cn/bugstack/domain/rebate/model/entity/TaskEntity.java
+new file mode 100644
+index 0000000..1f9d69e
+--- /dev/null
++++ b/big-market-domain/src/main/java/cn/bugstack/domain/rebate/model/entity/TaskEntity.java
+@@ -0,0 +1,33 @@
++package cn.bugstack.domain.rebate.model.entity;
++
++import cn.bugstack.domain.rebate.event.SendRebateMessageEvent;
++import cn.bugstack.domain.rebate.model.valobj.TaskStateVO;
++import cn.bugstack.types.event.BaseEvent;
++import lombok.AllArgsConstructor;
++import lombok.Builder;
++import lombok.Data;
++import lombok.NoArgsConstructor;
++
++/**
++ * @author Fuzhengwei bugstack.cn @小傅哥
++ * @description 任务实体对象
++ * @create 2024-04-06 09:38
++ */
++@Data
++@Builder
++@AllArgsConstructor
++@NoArgsConstructor
++public class TaskEntity {
++
++    /** 活动ID */
++    private String userId;
++    /** 消息主题 */
++    private String topic;
++    /** 消息编号 */
++    private String messageId;
++    /** 消息主体 */
++    private BaseEvent.EventMessage<SendRebateMessageEvent.RebateMessage> message;
++    /** 任务状态；create-创建、completed-完成、fail-失败 */
++    private TaskStateVO state;
++
++}
+diff --git a/big-market-domain/src/main/java/cn/bugstack/domain/rebate/model/valobj/BehaviorTypeVO.java b/big-market-domain/src/main/java/cn/bugstack/domain/rebate/model/valobj/BehaviorTypeVO.java
+new file mode 100644
+index 0000000..55d635e
+--- /dev/null
++++ b/big-market-domain/src/main/java/cn/bugstack/domain/rebate/model/valobj/BehaviorTypeVO.java
+@@ -0,0 +1,22 @@
++package cn.bugstack.domain.rebate.model.valobj;
++
++import lombok.AllArgsConstructor;
++import lombok.Getter;
++
++/**
++ * @author Fuzhengwei bugstack.cn @小傅哥
++ * @description 行为类型枚举值对象
++ * @create 2024-04-30 14:36
++ */
++@Getter
++@AllArgsConstructor
++public enum BehaviorTypeVO {
++
++    SIGN("sign", "签到（日历）"),
++    OPENAI_PAY("openai_pay", "openai 外部支付完成"),
++    ;
++
++    private final String code;
++    private final String info;
++
++}
+diff --git a/big-market-domain/src/main/java/cn/bugstack/domain/rebate/model/valobj/DailyBehaviorRebateVO.java b/big-market-domain/src/main/java/cn/bugstack/domain/rebate/model/valobj/DailyBehaviorRebateVO.java
+new file mode 100644
+index 0000000..08e431d
+--- /dev/null
++++ b/big-market-domain/src/main/java/cn/bugstack/domain/rebate/model/valobj/DailyBehaviorRebateVO.java
+@@ -0,0 +1,25 @@
++package cn.bugstack.domain.rebate.model.valobj;
++
++import lombok.*;
++
++/**
++ * @author Fuzhengwei bugstack.cn @小傅哥
++ * @description 日常行为返利配置值对象
++ * @create 2024-04-30 16:17
++ */
++@Getter
++@Builder
++@AllArgsConstructor
++@NoArgsConstructor
++public class DailyBehaviorRebateVO {
++
++    /** 行为类型（sign 签到、openai_pay 支付） */
++    private String behaviorType;
++    /** 返利描述 */
++    private String rebateDesc;
++    /** 返利类型（sku 活动库存充值商品、integral 用户活动积分） */
++    private String rebateType;
++    /** 返利配置 */
++    private String rebateConfig;
++
++}
+diff --git a/big-market-domain/src/main/java/cn/bugstack/domain/rebate/model/valobj/TaskStateVO.java b/big-market-domain/src/main/java/cn/bugstack/domain/rebate/model/valobj/TaskStateVO.java
+new file mode 100644
+index 0000000..103aef5
+--- /dev/null
++++ b/big-market-domain/src/main/java/cn/bugstack/domain/rebate/model/valobj/TaskStateVO.java
+@@ -0,0 +1,23 @@
++package cn.bugstack.domain.rebate.model.valobj;
++
++import lombok.AllArgsConstructor;
++import lombok.Getter;
++
++/**
++ * @author Fuzhengwei bugstack.cn @小傅哥
++ * @description 任务状态值对象
++ * @create 2024-04-06 10:00
++ */
++@Getter
++@AllArgsConstructor
++public enum TaskStateVO {
++
++    create("create", "创建"),
++    complete("complete", "发送完成"),
++    fail("fail", "发送失败"),
++    ;
++
++    private final String code;
++    private final String desc;
++
++}
+diff --git a/big-market-domain/src/main/java/cn/bugstack/domain/rebate/repository/IBehaviorRebateRepository.java b/big-market-domain/src/main/java/cn/bugstack/domain/rebate/repository/IBehaviorRebateRepository.java
+new file mode 100644
+index 0000000..5dddaf4
+--- /dev/null
++++ b/big-market-domain/src/main/java/cn/bugstack/domain/rebate/repository/IBehaviorRebateRepository.java
+@@ -0,0 +1,20 @@
++package cn.bugstack.domain.rebate.repository;
++
++import cn.bugstack.domain.rebate.model.aggregate.BehaviorRebateAggregate;
++import cn.bugstack.domain.rebate.model.valobj.BehaviorTypeVO;
++import cn.bugstack.domain.rebate.model.valobj.DailyBehaviorRebateVO;
++
++import java.util.List;
++
++/**
++ * @author Fuzhengwei bugstack.cn @小傅哥
++ * @description 行为返利服务仓储接口
++ * @create 2024-04-30 14:58
++ */
++public interface IBehaviorRebateRepository {
++
++    List<DailyBehaviorRebateVO> queryDailyBehaviorRebateConfig(BehaviorTypeVO behaviorTypeVO);
++
++    void saveUserRebateRecord(String userId, List<BehaviorRebateAggregate> behaviorRebateAggregates);
++
++}
+diff --git a/big-market-domain/src/main/java/cn/bugstack/domain/rebate/service/BehaviorRebateService.java b/big-market-domain/src/main/java/cn/bugstack/domain/rebate/service/BehaviorRebateService.java
+new file mode 100644
+index 0000000..8bd5351
+--- /dev/null
++++ b/big-market-domain/src/main/java/cn/bugstack/domain/rebate/service/BehaviorRebateService.java
+@@ -0,0 +1,91 @@
++package cn.bugstack.domain.rebate.service;
++
++import cn.bugstack.domain.rebate.event.SendRebateMessageEvent;
++import cn.bugstack.domain.rebate.model.aggregate.BehaviorRebateAggregate;
++import cn.bugstack.domain.rebate.model.entity.BehaviorEntity;
++import cn.bugstack.domain.rebate.model.entity.BehaviorRebateOrderEntity;
++import cn.bugstack.domain.rebate.model.entity.TaskEntity;
++import cn.bugstack.domain.rebate.model.valobj.DailyBehaviorRebateVO;
++import cn.bugstack.domain.rebate.model.valobj.TaskStateVO;
++import cn.bugstack.domain.rebate.repository.IBehaviorRebateRepository;
++import cn.bugstack.types.common.Constants;
++import cn.bugstack.types.event.BaseEvent;
++import org.apache.commons.lang3.RandomStringUtils;
++import org.springframework.stereotype.Service;
++
++import javax.annotation.Resource;
++import java.util.ArrayList;
++import java.util.List;
++
++/**
++ * @author Fuzhengwei bugstack.cn @小傅哥
++ * @description 行为返利服务实现
++ * @create 2024-04-30 15:31
++ */
++@Service
++public class BehaviorRebateService implements IBehaviorRebateService {
++
++    @Resource
++    private IBehaviorRebateRepository behaviorRebateRepository;
++    @Resource
++    private SendRebateMessageEvent sendRebateMessageEvent;
++
++    @Override
++    public List<String> createOrder(BehaviorEntity behaviorEntity) {
++        // 1. 查询返利配置
++        List<DailyBehaviorRebateVO> dailyBehaviorRebateVOS = behaviorRebateRepository.queryDailyBehaviorRebateConfig(behaviorEntity.getBehaviorTypeVO());
++        if (null == dailyBehaviorRebateVOS || dailyBehaviorRebateVOS.isEmpty()) return new ArrayList<>();
++
++        // 2. 构建聚合对象
++        List<String> orderIds = new ArrayList<>();
++        List<BehaviorRebateAggregate> behaviorRebateAggregates = new ArrayList<>();
++        for (DailyBehaviorRebateVO dailyBehaviorRebateVO : dailyBehaviorRebateVOS) {
++            // 拼装业务ID；用户ID_返利类型_外部透彻业务ID
++            String bizId = behaviorEntity.getUserId() + Constants.UNDERLINE + dailyBehaviorRebateVO.getRebateType() + Constants.UNDERLINE + behaviorEntity.getOutBusinessNo();
++            BehaviorRebateOrderEntity behaviorRebateOrderEntity = BehaviorRebateOrderEntity.builder()
++                    .userId(behaviorEntity.getUserId())
++                    .orderId(RandomStringUtils.randomNumeric(12))
++                    .behaviorType(dailyBehaviorRebateVO.getBehaviorType())
++                    .rebateDesc(dailyBehaviorRebateVO.getRebateDesc())
++                    .rebateType(dailyBehaviorRebateVO.getRebateType())
++                    .rebateConfig(dailyBehaviorRebateVO.getRebateConfig())
++                    .bizId(bizId)
++                    .build();
++            orderIds.add(behaviorRebateOrderEntity.getOrderId());
++
++            // MQ 消息对象
++            SendRebateMessageEvent.RebateMessage rebateMessage = SendRebateMessageEvent.RebateMessage.builder()
++                    .userId(behaviorEntity.getUserId())
++                    .rebateType(dailyBehaviorRebateVO.getBehaviorType())
++                    .rebateConfig(dailyBehaviorRebateVO.getRebateConfig())
++                    .bizId(bizId)
++                    .build();
++
++            // 构建事件消息
++            BaseEvent.EventMessage<SendRebateMessageEvent.RebateMessage> rebateMessageEventMessage = sendRebateMessageEvent.buildEventMessage(rebateMessage);
++
++            // 组装任务对象
++            TaskEntity taskEntity = new TaskEntity();
++            taskEntity.setUserId(behaviorEntity.getUserId());
++            taskEntity.setTopic(sendRebateMessageEvent.topic());
++            taskEntity.setMessageId(rebateMessageEventMessage.getId());
++            taskEntity.setMessage(rebateMessageEventMessage);
++            taskEntity.setState(TaskStateVO.create);
++
++            BehaviorRebateAggregate behaviorRebateAggregate = BehaviorRebateAggregate.builder()
++                        .userId(behaviorEntity.getUserId())
++                        .behaviorRebateOrderEntity(behaviorRebateOrderEntity)
++                        .taskEntity(taskEntity)
++                        .build();
++
++            behaviorRebateAggregates.add(behaviorRebateAggregate);
++        }
++
++        // 3. 存储聚合对象数据
++        behaviorRebateRepository.saveUserRebateRecord(behaviorEntity.getUserId(), behaviorRebateAggregates);
++
++        // 4. 返回订单ID集合
++        return orderIds;
++    }
++
++}
+diff --git a/big-market-domain/src/main/java/cn/bugstack/domain/rebate/service/IBehaviorRebateService.java b/big-market-domain/src/main/java/cn/bugstack/domain/rebate/service/IBehaviorRebateService.java
+new file mode 100644
+index 0000000..ca5c6b3
+--- /dev/null
++++ b/big-market-domain/src/main/java/cn/bugstack/domain/rebate/service/IBehaviorRebateService.java
+@@ -0,0 +1,22 @@
++package cn.bugstack.domain.rebate.service;
++
++import cn.bugstack.domain.rebate.model.entity.BehaviorEntity;
++
++import java.util.List;
++
++/**
++ * @author Fuzhengwei bugstack.cn @小傅哥
++ * @description 行为返利服务接口
++ * @create 2024-04-30 14:05
++ */
++public interface IBehaviorRebateService {
++
++    /**
++     * 创建行为动作的入账订单
++     *
++     * @param behaviorEntity 行为实体对象
++     * @return 订单ID
++     */
++    List<String> createOrder(BehaviorEntity behaviorEntity);
++
++}
+diff --git a/big-market-infrastructure/src/main/java/cn/bugstack/infrastructure/persistent/dao/IDailyBehaviorRebateDao.java b/big-market-infrastructure/src/main/java/cn/bugstack/infrastructure/persistent/dao/IDailyBehaviorRebateDao.java
+new file mode 100644
+index 0000000..ad89152
+--- /dev/null
++++ b/big-market-infrastructure/src/main/java/cn/bugstack/infrastructure/persistent/dao/IDailyBehaviorRebateDao.java
+@@ -0,0 +1,18 @@
++package cn.bugstack.infrastructure.persistent.dao;
++
++import cn.bugstack.infrastructure.persistent.po.DailyBehaviorRebate;
++import org.apache.ibatis.annotations.Mapper;
++
++import java.util.List;
++
++/**
++ * @author Fuzhengwei bugstack.cn @小傅哥
++ * @description 日常行为返利活动配置
++ * @create 2024-04-30 13:48
++ */
++@Mapper
++public interface IDailyBehaviorRebateDao {
++
++    List<DailyBehaviorRebate> queryDailyBehaviorRebateByBehaviorType(String behaviorType);
++
++}
+diff --git a/big-market-infrastructure/src/main/java/cn/bugstack/infrastructure/persistent/dao/IUserBehaviorRebateOrderDao.java b/big-market-infrastructure/src/main/java/cn/bugstack/infrastructure/persistent/dao/IUserBehaviorRebateOrderDao.java
+new file mode 100644
+index 0000000..093d1bd
+--- /dev/null
++++ b/big-market-infrastructure/src/main/java/cn/bugstack/infrastructure/persistent/dao/IUserBehaviorRebateOrderDao.java
+@@ -0,0 +1,18 @@
++package cn.bugstack.infrastructure.persistent.dao;
++
++import cn.bugstack.infrastructure.persistent.po.UserBehaviorRebateOrder;
++import cn.bugstack.middleware.db.router.annotation.DBRouterStrategy;
++import org.apache.ibatis.annotations.Mapper;
++
++/**
++ * @author Fuzhengwei bugstack.cn @小傅哥
++ * @description 用户行为返利流水订单表
++ * @create 2024-04-30 13:48
++ */
++@Mapper
++@DBRouterStrategy(splitTable = true)
++public interface IUserBehaviorRebateOrderDao {
++
++    void insert(UserBehaviorRebateOrder userBehaviorRebateOrder);
++
++}
+diff --git a/big-market-infrastructure/src/main/java/cn/bugstack/infrastructure/persistent/po/DailyBehaviorRebate.java b/big-market-infrastructure/src/main/java/cn/bugstack/infrastructure/persistent/po/DailyBehaviorRebate.java
+new file mode 100644
+index 0000000..a284790
+--- /dev/null
++++ b/big-market-infrastructure/src/main/java/cn/bugstack/infrastructure/persistent/po/DailyBehaviorRebate.java
+@@ -0,0 +1,32 @@
++package cn.bugstack.infrastructure.persistent.po;
++
++import lombok.Data;
++
++import java.util.Date;
++
++/**
++ * @author Fuzhengwei bugstack.cn @小傅哥
++ * @description 日常行为返利活动配置 持久化对象
++ * @create 2024-04-30 13:38
++ */
++@Data
++public class DailyBehaviorRebate {
++
++    /** 自增ID */
++    private Long id;
++    /** 行为类型（sign 签到、openai_pay 支付） */
++    private String behaviorType;
++    /** 返利描述 */
++    private String rebateDesc;
++    /** 返利类型（sku 活动库存充值商品、integral 用户活动积分） */
++    private String rebateType;
++    /** 返利配置 */
++    private String rebateConfig;
++    /** 状态（open 开启、close 关闭） */
++    private String state;
++    /** 创建时间 */
++    private Date createTime;
++    /** 更新时间 */
++    private Date updateTime;
++
++}
+diff --git a/big-market-infrastructure/src/main/java/cn/bugstack/infrastructure/persistent/po/UserBehaviorRebateOrder.java b/big-market-infrastructure/src/main/java/cn/bugstack/infrastructure/persistent/po/UserBehaviorRebateOrder.java
+new file mode 100644
+index 0000000..c20e881
+--- /dev/null
++++ b/big-market-infrastructure/src/main/java/cn/bugstack/infrastructure/persistent/po/UserBehaviorRebateOrder.java
+@@ -0,0 +1,36 @@
++package cn.bugstack.infrastructure.persistent.po;
++
++import lombok.Data;
++
++import java.util.Date;
++
++/**
++ * @author Fuzhengwei bugstack.cn @小傅哥
++ * @description 用户行为返利流水订单表 持久化对象
++ * @create 2024-04-30 13:43
++ */
++@Data
++public class UserBehaviorRebateOrder {
++
++    /** 自增ID */
++    private Long id;
++    /** 用户ID */
++    private String userId;
++    /** 订单ID */
++    private String orderId;
++    /** 行为类型（sign 签到、openai_pay 支付） */
++    private String behaviorType;
++    /** 返利描述 */
++    private String rebateDesc;
++    /** 返利类型（sku 活动库存充值商品、integral 用户活动积分） */
++    private String rebateType;
++    /** 返利配置【sku值，积分值】 */
++    private String rebateConfig;
++    /** 业务ID - 拼接的唯一值 */
++    private String bizId;
++    /** 创建时间 */
++    private Date createTime;
++    /** 更新时间 */
++    private Date updateTime;
++
++}
+diff --git a/big-market-infrastructure/src/main/java/cn/bugstack/infrastructure/persistent/repository/BehaviorRebateRepository.java b/big-market-infrastructure/src/main/java/cn/bugstack/infrastructure/persistent/repository/BehaviorRebateRepository.java
+new file mode 100644
+index 0000000..41a85c8
+--- /dev/null
++++ b/big-market-infrastructure/src/main/java/cn/bugstack/infrastructure/persistent/repository/BehaviorRebateRepository.java
+@@ -0,0 +1,125 @@
++package cn.bugstack.infrastructure.persistent.repository;
++
++import cn.bugstack.domain.rebate.model.aggregate.BehaviorRebateAggregate;
++import cn.bugstack.domain.rebate.model.entity.BehaviorRebateOrderEntity;
++import cn.bugstack.domain.rebate.model.entity.TaskEntity;
++import cn.bugstack.domain.rebate.model.valobj.BehaviorTypeVO;
++import cn.bugstack.domain.rebate.model.valobj.DailyBehaviorRebateVO;
++import cn.bugstack.domain.rebate.repository.IBehaviorRebateRepository;
++import cn.bugstack.infrastructure.event.EventPublisher;
++import cn.bugstack.infrastructure.persistent.dao.IDailyBehaviorRebateDao;
++import cn.bugstack.infrastructure.persistent.dao.ITaskDao;
++import cn.bugstack.infrastructure.persistent.dao.IUserBehaviorRebateOrderDao;
++import cn.bugstack.infrastructure.persistent.po.DailyBehaviorRebate;
++import cn.bugstack.infrastructure.persistent.po.Task;
++import cn.bugstack.infrastructure.persistent.po.UserBehaviorRebateOrder;
++import cn.bugstack.middleware.db.router.strategy.IDBRouterStrategy;
++import cn.bugstack.types.enums.ResponseCode;
++import cn.bugstack.types.exception.AppException;
++import com.alibaba.fastjson.JSON;
++import lombok.extern.slf4j.Slf4j;
++import org.springframework.dao.DuplicateKeyException;
++import org.springframework.stereotype.Component;
++import org.springframework.transaction.support.TransactionTemplate;
++
++import javax.annotation.Resource;
++import java.util.ArrayList;
++import java.util.List;
++
++/**
++ * @author Fuzhengwei bugstack.cn @小傅哥
++ * @description 行为返利服务仓储实现
++ * @create 2024-04-30 16:21
++ */
++@Slf4j
++@Component
++public class BehaviorRebateRepository implements IBehaviorRebateRepository {
++
++    @Resource
++    private IDailyBehaviorRebateDao dailyBehaviorRebateDao;
++    @Resource
++    private IUserBehaviorRebateOrderDao userBehaviorRebateOrderDao;
++    @Resource
++    private ITaskDao taskDao;
++    @Resource
++    private IDBRouterStrategy dbRouter;
++    @Resource
++    private TransactionTemplate transactionTemplate;
++    @Resource
++    private EventPublisher eventPublisher;
++
++    @Override
++    public List<DailyBehaviorRebateVO> queryDailyBehaviorRebateConfig(BehaviorTypeVO behaviorTypeVO) {
++        List<DailyBehaviorRebate> dailyBehaviorRebates = dailyBehaviorRebateDao.queryDailyBehaviorRebateByBehaviorType(behaviorTypeVO.getCode());
++        List<DailyBehaviorRebateVO> dailyBehaviorRebateVOS = new ArrayList<>(dailyBehaviorRebates.size());
++        for (DailyBehaviorRebate dailyBehaviorRebate : dailyBehaviorRebates) {
++            dailyBehaviorRebateVOS.add(DailyBehaviorRebateVO.builder()
++                    .behaviorType(dailyBehaviorRebate.getBehaviorType())
++                    .rebateDesc(dailyBehaviorRebate.getRebateDesc())
++                    .rebateType(dailyBehaviorRebate.getRebateType())
++                    .rebateConfig(dailyBehaviorRebate.getRebateConfig())
++                    .build());
++        }
++        return dailyBehaviorRebateVOS;
++    }
++
++    @Override
++    public void saveUserRebateRecord(String userId, List<BehaviorRebateAggregate> behaviorRebateAggregates) {
++        try {
++            dbRouter.doRouter(userId);
++            transactionTemplate.execute(status -> {
++                try {
++                    for (BehaviorRebateAggregate behaviorRebateAggregate : behaviorRebateAggregates) {
++                        BehaviorRebateOrderEntity behaviorRebateOrderEntity = behaviorRebateAggregate.getBehaviorRebateOrderEntity();
++                        // 用户行为返利订单对象
++                        UserBehaviorRebateOrder userBehaviorRebateOrder = new UserBehaviorRebateOrder();
++                        userBehaviorRebateOrder.setUserId(behaviorRebateOrderEntity.getUserId());
++                        userBehaviorRebateOrder.setOrderId(behaviorRebateOrderEntity.getOrderId());
++                        userBehaviorRebateOrder.setBehaviorType(behaviorRebateOrderEntity.getBehaviorType());
++                        userBehaviorRebateOrder.setRebateDesc(behaviorRebateOrderEntity.getRebateDesc());
++                        userBehaviorRebateOrder.setRebateType(behaviorRebateOrderEntity.getRebateType());
++                        userBehaviorRebateOrder.setRebateConfig(behaviorRebateOrderEntity.getRebateConfig());
++                        userBehaviorRebateOrder.setBizId(behaviorRebateOrderEntity.getBizId());
++                        userBehaviorRebateOrderDao.insert(userBehaviorRebateOrder);
++
++                        // 任务对象
++                        TaskEntity taskEntity = behaviorRebateAggregate.getTaskEntity();
++                        Task task = new Task();
++                        task.setUserId(taskEntity.getUserId());
++                        task.setTopic(taskEntity.getTopic());
++                        task.setMessageId(taskEntity.getMessageId());
++                        task.setMessage(JSON.toJSONString(taskEntity.getMessage()));
++                        task.setState(taskEntity.getState().getCode());
++                        taskDao.insert(task);
++                    }
++                    return 1;
++                } catch (DuplicateKeyException e) {
++                    status.setRollbackOnly();
++                    log.error("写入返利记录，唯一索引冲突 userId: {}", userId, e);
++                    throw new AppException(ResponseCode.INDEX_DUP.getCode(), e);
++                }
++            });
++        } finally {
++            dbRouter.clear();
++        }
++
++        // 同步发送MQ消息
++        for (BehaviorRebateAggregate behaviorRebateAggregate : behaviorRebateAggregates) {
++            TaskEntity taskEntity = behaviorRebateAggregate.getTaskEntity();
++            Task task = new Task();
++            task.setUserId(taskEntity.getUserId());
++            task.setMessageId(taskEntity.getMessageId());
++            try {
++                // 发送消息【在事务外执行，如果失败还有任务补偿】
++                eventPublisher.publish(taskEntity.getTopic(), taskEntity.getMessage());
++                // 更新数据库记录，task 任务表
++                taskDao.updateTaskSendMessageCompleted(task);
++            } catch (Exception e) {
++                log.error("写入返利记录，发送MQ消息失败 userId: {} topic: {}", userId, task.getTopic());
++                taskDao.updateTaskSendMessageFail(task);
++            }
++        }
++
++    }
++
++}
+diff --git a/docs/dev-ops/mysql/sql/big_market.sql b/docs/dev-ops/mysql/sql/big_market.sql
+index a1f8475..9364d97 100644
+--- a/docs/dev-ops/mysql/sql/big_market.sql
++++ b/docs/dev-ops/mysql/sql/big_market.sql
+@@ -7,7 +7,7 @@
+ #
+ # 主机: 127.0.0.1 (MySQL 5.6.39)
+ # 数据库: big_market
+-# 生成时间: 2024-04-27 07:50:37 +0000
++# 生成时间: 2024-04-30 10:19:11 +0000
+ # ************************************************************
+ 
+ 
+@@ -58,6 +58,36 @@ VALUES
+ UNLOCK TABLES;
+ 
+ 
++# 转储表 daily_behavior_rebate
++# ------------------------------------------------------------
++
++DROP TABLE IF EXISTS `daily_behavior_rebate`;
++
++CREATE TABLE `daily_behavior_rebate` (
++  `id` int(11) unsigned NOT NULL AUTO_INCREMENT COMMENT '自增ID',
++  `behavior_type` varchar(16) NOT NULL COMMENT '行为类型（sign 签到、openai_pay 支付）',
++  `rebate_desc` varchar(128) NOT NULL COMMENT '返利描述',
++  `rebate_type` varchar(16) NOT NULL COMMENT '返利类型（sku 活动库存充值商品、integral 用户活动积分）',
++  `rebate_config` varchar(32) NOT NULL COMMENT '返利配置',
++  `state` varchar(12) NOT NULL COMMENT '状态（open 开启、close 关闭）',
++  `create_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
++  `update_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
++  PRIMARY KEY (`id`),
++  KEY `idx_behavior_type` (`behavior_type`)
++) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='日常行为返利活动配置';
++
++LOCK TABLES `daily_behavior_rebate` WRITE;
++/*!40000 ALTER TABLE `daily_behavior_rebate` DISABLE KEYS */;
++
++INSERT INTO `daily_behavior_rebate` (`id`, `behavior_type`, `rebate_desc`, `rebate_type`, `rebate_config`, `state`, `create_time`, `update_time`)
++VALUES
++	(1,'sign','签到返利-sku额度','sku','9011','open','2024-04-30 09:32:46','2024-04-30 18:05:23'),
++	(2,'sign','签到返利-积分','integral','10','open','2024-04-30 09:32:46','2024-04-30 18:05:27');
++
++/*!40000 ALTER TABLE `daily_behavior_rebate` ENABLE KEYS */;
++UNLOCK TABLES;
++
++
+ # 转储表 raffle_activity
+ # ------------------------------------------------------------
+ 
+diff --git a/docs/dev-ops/mysql/sql/big_market_01.sql b/docs/dev-ops/mysql/sql/big_market_01.sql
+index 2afc624..e9f679b 100644
+--- a/docs/dev-ops/mysql/sql/big_market_01.sql
++++ b/docs/dev-ops/mysql/sql/big_market_01.sql
+@@ -7,7 +7,7 @@
+ #
+ # 主机: 127.0.0.1 (MySQL 5.6.39)
+ # 数据库: big_market_01
+-# 生成时间: 2024-04-27 07:50:50 +0000
++# 生成时间: 2024-04-30 10:18:45 +0000
+ # ************************************************************
+ 
+ 
+@@ -167,64 +167,6 @@ LOCK TABLES `raffle_activity_order_001` WRITE;
+ 
+ INSERT INTO `raffle_activity_order_001` (`id`, `user_id`, `sku`, `activity_id`, `activity_name`, `strategy_id`, `order_id`, `order_time`, `total_count`, `day_count`, `month_count`, `state`, `out_business_no`, `create_time`, `update_time`)
+ VALUES
+-	(10,'xiaofuge',9011,100301,'测试活动',100006,'973296627434','2024-03-23 08:38:58',1,1,1,'completed','700091009111','2024-03-23 16:38:57','2024-03-23 16:38:57'),
+-	(11,'xiaofuge',9011,100301,'测试活动',100006,'659722993182','2024-03-23 09:38:54',1,1,1,'completed','700091009112','2024-03-23 17:38:54','2024-03-23 17:38:54'),
+-	(13,'xiaofuge',9011,100301,'测试活动',100006,'773767968094','2024-03-23 09:40:11',1,1,1,'completed','700091009113','2024-03-23 17:40:10','2024-03-23 17:40:10'),
+-	(14,'xiaofuge',9011,100301,'测试活动',100006,'977898032977','2024-03-30 04:13:20',1,1,1,'completed','562827683573','2024-03-30 12:13:20','2024-03-30 12:13:20'),
+-	(15,'xiaofuge',9011,100301,'测试活动',100006,'981492025457','2024-03-30 05:17:51',1,1,1,'completed','827130794336','2024-03-30 13:17:51','2024-03-30 13:17:51'),
+-	(16,'xiaofuge',9011,100301,'测试活动',100006,'119662227336','2024-03-30 05:17:51',1,1,1,'completed','150844059982','2024-03-30 13:17:51','2024-03-30 13:17:51'),
+-	(17,'xiaofuge',9011,100301,'测试活动',100006,'690133201288','2024-03-30 05:33:39',1,1,1,'completed','953370122326','2024-03-30 13:33:39','2024-03-30 13:33:39'),
+-	(18,'xiaofuge',9011,100301,'测试活动',100006,'593200667289','2024-03-30 05:33:39',1,1,1,'completed','111390727659','2024-03-30 13:33:39','2024-03-30 13:33:39'),
+-	(19,'xiaofuge',9011,100301,'测试活动',100006,'980711076393','2024-03-30 05:33:39',1,1,1,'completed','039423474452','2024-03-30 13:33:39','2024-03-30 13:33:39'),
+-	(20,'xiaofuge',9011,100301,'测试活动',100006,'551375935033','2024-03-30 05:33:39',1,1,1,'completed','280668320055','2024-03-30 13:33:39','2024-03-30 13:33:39'),
+-	(21,'xiaofuge',9011,100301,'测试活动',100006,'716528762190','2024-03-30 05:33:39',1,1,1,'completed','330472003431','2024-03-30 13:33:39','2024-03-30 13:33:39'),
+-	(22,'xiaofuge',9011,100301,'测试活动',100006,'644880195681','2024-03-30 05:33:39',1,1,1,'completed','896655771302','2024-03-30 13:33:39','2024-03-30 13:33:39'),
+-	(23,'xiaofuge',9011,100301,'测试活动',100006,'918009421723','2024-03-30 05:33:39',1,1,1,'completed','223114193931','2024-03-30 13:33:39','2024-03-30 13:33:39'),
+-	(24,'xiaofuge',9011,100301,'测试活动',100006,'414038400484','2024-03-30 05:33:39',1,1,1,'completed','669801912616','2024-03-30 13:33:39','2024-03-30 13:33:39'),
+-	(25,'xiaofuge',9011,100301,'测试活动',100006,'819052152409','2024-03-30 05:33:40',1,1,1,'completed','968823148813','2024-03-30 13:33:39','2024-03-30 13:33:39'),
+-	(26,'xiaofuge',9011,100301,'测试活动',100006,'013685589273','2024-03-30 05:33:40',1,1,1,'completed','281985691959','2024-03-30 13:33:39','2024-03-30 13:33:39'),
+-	(27,'xiaofuge',9011,100301,'测试活动',100006,'694790983278','2024-03-30 05:33:40',1,1,1,'completed','812013952722','2024-03-30 13:33:39','2024-03-30 13:33:39'),
+-	(28,'xiaofuge',9011,100301,'测试活动',100006,'601285862715','2024-03-30 05:33:40',1,1,1,'completed','102122841078','2024-03-30 13:33:39','2024-03-30 13:33:39'),
+-	(29,'xiaofuge',9011,100301,'测试活动',100006,'278549779124','2024-03-30 05:33:40',1,1,1,'completed','795697718772','2024-03-30 13:33:39','2024-03-30 13:33:39'),
+-	(30,'xiaofuge',9011,100301,'测试活动',100006,'867889977246','2024-03-30 05:33:40',1,1,1,'completed','419196278242','2024-03-30 13:33:39','2024-03-30 13:33:39'),
+-	(31,'xiaofuge',9011,100301,'测试活动',100006,'270946272407','2024-03-30 05:33:40',1,1,1,'completed','297043861965','2024-03-30 13:33:39','2024-03-30 13:33:39'),
+-	(32,'xiaofuge',9011,100301,'测试活动',100006,'798392711746','2024-03-30 05:33:40',1,1,1,'completed','721157339512','2024-03-30 13:33:39','2024-03-30 13:33:39'),
+-	(33,'xiaofuge',9011,100301,'测试活动',100006,'037305996439','2024-03-30 05:33:40',1,1,1,'completed','088008719855','2024-03-30 13:33:39','2024-03-30 13:33:39'),
+-	(34,'xiaofuge',9011,100301,'测试活动',100006,'015056893123','2024-03-30 05:33:40',1,1,1,'completed','885793880817','2024-03-30 13:33:39','2024-03-30 13:33:39'),
+-	(35,'xiaofuge',9011,100301,'测试活动',100006,'422734098553','2024-03-30 05:33:40',1,1,1,'completed','048066377262','2024-03-30 13:33:39','2024-03-30 13:33:39'),
+-	(36,'xiaofuge',9011,100301,'测试活动',100006,'125534021547','2024-03-30 09:10:06',1,1,1,'completed','237913144976','2024-03-30 17:10:05','2024-03-30 17:10:05'),
+-	(37,'xiaofuge',9011,100301,'测试活动',100006,'906577205018','2024-03-30 09:10:06',1,1,1,'completed','257763123780','2024-03-30 17:10:05','2024-03-30 17:10:05'),
+-	(38,'xiaofuge',9011,100301,'测试活动',100006,'577878467308','2024-03-30 09:10:06',1,1,1,'completed','690370155629','2024-03-30 17:10:06','2024-03-30 17:10:06'),
+-	(39,'xiaofuge',9011,100301,'测试活动',100006,'130934158588','2024-03-30 09:10:06',1,1,1,'completed','864303749107','2024-03-30 17:10:06','2024-03-30 17:10:06'),
+-	(40,'xiaofuge',9011,100301,'测试活动',100006,'484575318240','2024-03-30 09:10:06',1,1,1,'completed','355946107906','2024-03-30 17:10:06','2024-03-30 17:10:06'),
+-	(41,'xiaofuge',9011,100301,'测试活动',100006,'334219563572','2024-03-30 09:10:06',1,1,1,'completed','629679608889','2024-03-30 17:10:06','2024-03-30 17:10:06'),
+-	(42,'xiaofuge',9011,100301,'测试活动',100006,'905424061364','2024-03-30 09:10:06',1,1,1,'completed','766840362369','2024-03-30 17:10:06','2024-03-30 17:10:06'),
+-	(43,'xiaofuge',9011,100301,'测试活动',100006,'081184848765','2024-03-30 09:10:06',1,1,1,'completed','805402859227','2024-03-30 17:10:06','2024-03-30 17:10:06'),
+-	(44,'xiaofuge',9011,100301,'测试活动',100006,'245273095853','2024-03-30 09:10:06',1,1,1,'completed','333924242550','2024-03-30 17:10:06','2024-03-30 17:10:06'),
+-	(45,'xiaofuge',9011,100301,'测试活动',100006,'645786614176','2024-03-30 09:10:06',1,1,1,'completed','709012965465','2024-03-30 17:10:06','2024-03-30 17:10:06'),
+-	(46,'xiaofuge',9011,100301,'测试活动',100006,'976098448519','2024-03-30 09:10:06',1,1,1,'completed','076464685314','2024-03-30 17:10:06','2024-03-30 17:10:06'),
+-	(47,'xiaofuge',9011,100301,'测试活动',100006,'359533807959','2024-03-30 09:10:06',1,1,1,'completed','501769140520','2024-03-30 17:10:06','2024-03-30 17:10:06'),
+-	(48,'xiaofuge',9011,100301,'测试活动',100006,'069825222776','2024-03-30 09:10:06',1,1,1,'completed','362857642896','2024-03-30 17:10:06','2024-03-30 17:10:06'),
+-	(49,'xiaofuge',9011,100301,'测试活动',100006,'793595913277','2024-03-30 09:10:06',1,1,1,'completed','886499146967','2024-03-30 17:10:06','2024-03-30 17:10:06'),
+-	(50,'xiaofuge',9011,100301,'测试活动',100006,'591290337369','2024-03-30 09:10:06',1,1,1,'completed','756466322485','2024-03-30 17:10:06','2024-03-30 17:10:06'),
+-	(51,'xiaofuge',9011,100301,'测试活动',100006,'216203170946','2024-03-30 09:10:06',1,1,1,'completed','616831586240','2024-03-30 17:10:06','2024-03-30 17:10:06'),
+-	(52,'xiaofuge',9011,100301,'测试活动',100006,'331973376483','2024-03-30 09:10:06',1,1,1,'completed','809200206672','2024-03-30 17:10:06','2024-03-30 17:10:06'),
+-	(53,'xiaofuge',9011,100301,'测试活动',100006,'358968919391','2024-03-30 09:10:06',1,1,1,'completed','619112026689','2024-03-30 17:10:06','2024-03-30 17:10:06'),
+-	(54,'xiaofuge',9011,100301,'测试活动',100006,'094263379883','2024-03-30 09:10:06',1,1,1,'completed','746237303851','2024-03-30 17:10:06','2024-03-30 17:10:06'),
+-	(56,'xiaofuge',9011,100301,'测试活动',100006,'381900087970','2024-04-05 06:19:30',1,1,1,'completed','700091009119','2024-04-05 14:19:30','2024-04-05 14:19:30'),
+-	(58,'xiaofuge',9011,100301,'测试活动',100006,'434016169087','2024-04-21 10:36:47',1,1,1,'completed','7000910091001','2024-04-21 18:36:46','2024-04-21 18:36:46'),
+-	(59,'xiaofuge',9011,100301,'测试活动',100006,'237123329610','2024-04-21 10:37:20',1,1,1,'completed','7000910091002','2024-04-21 18:37:19','2024-04-21 18:37:19'),
+-	(60,'xiaofuge',9011,100301,'测试活动',100006,'195450920247','2024-04-21 10:37:41',1,1,1,'completed','7000910091003','2024-04-21 18:37:41','2024-04-21 18:37:41'),
+-	(61,'xiaofuge',9011,100301,'测试活动',100006,'910880814122','2024-04-21 10:40:25',1,1,1,'completed','832719848802','2024-04-21 18:40:24','2024-04-21 18:40:24'),
+-	(62,'xiaofuge',9011,100301,'测试活动',100006,'521217042254','2024-04-21 10:40:25',1,1,1,'completed','041601984320','2024-04-21 18:40:24','2024-04-21 18:40:24'),
+-	(63,'xiaofuge',9011,100301,'测试活动',100006,'299040315943','2024-04-21 10:40:25',1,1,1,'completed','250243206703','2024-04-21 18:40:24','2024-04-21 18:40:24'),
+-	(64,'xiaofuge',9011,100301,'测试活动',100006,'659684017852','2024-04-21 10:40:25',1,1,1,'completed','460921198062','2024-04-21 18:40:24','2024-04-21 18:40:24'),
+-	(65,'xiaofuge',9011,100301,'测试活动',100006,'062475079006','2024-04-21 10:40:25',1,1,1,'completed','161250520802','2024-04-21 18:40:24','2024-04-21 18:40:24'),
+-	(66,'xiaofuge',9011,100301,'测试活动',100006,'396270866526','2024-04-21 10:40:25',1,1,1,'completed','916592331247','2024-04-21 18:40:24','2024-04-21 18:40:24'),
+-	(67,'xiaofuge',9011,100301,'测试活动',100006,'753460308738','2024-04-21 10:40:25',1,1,1,'completed','342055194740','2024-04-21 18:40:25','2024-04-21 18:40:25'),
+-	(68,'xiaofuge',9011,100301,'测试活动',100006,'747563696488','2024-04-21 10:40:25',1,1,1,'completed','196922733111','2024-04-21 18:40:25','2024-04-21 18:40:25'),
+-	(69,'xiaofuge',9011,100301,'测试活动',100006,'213422763673','2024-04-21 10:40:25',1,1,1,'completed','111297173057','2024-04-21 18:40:25','2024-04-21 18:40:25'),
+-	(70,'xiaofuge',9011,100301,'测试活动',100006,'550960819802','2024-04-21 10:40:25',1,1,1,'completed','826915908946','2024-04-21 18:40:25','2024-04-21 18:40:25'),
+ 	(71,'xiaofuge',9011,100301,'测试活动',100006,'761345538871','2024-04-21 10:40:25',1,1,1,'completed','073735003829','2024-04-21 18:40:25','2024-04-21 18:40:25'),
+ 	(72,'xiaofuge',9011,100301,'测试活动',100006,'837744050164','2024-04-21 10:40:25',1,1,1,'completed','613036507854','2024-04-21 18:40:25','2024-04-21 18:40:25'),
+ 	(73,'xiaofuge',9011,100301,'测试活动',100006,'766742523760','2024-04-21 10:40:25',1,1,1,'completed','649099837249','2024-04-21 18:40:25','2024-04-21 18:40:25'),
+@@ -399,7 +341,10 @@ VALUES
+ 	(79,'xiaofuge','send_award','62146713103','{\"data\":{\"awardId\":101,\"awardTitle\":\"随机积分\",\"userId\":\"xiaofuge\"},\"id\":\"62146713103\",\"timestamp\":1714196358336}','completed','2024-04-27 13:39:18','2024-04-27 13:39:18'),
+ 	(80,'xiaofuge','send_award','69804673669','{\"data\":{\"awardId\":101,\"awardTitle\":\"随机积分\",\"userId\":\"xiaofuge\"},\"id\":\"69804673669\",\"timestamp\":1714201196264}','completed','2024-04-27 14:59:56','2024-04-27 14:59:56'),
+ 	(81,'xiaofuge','send_award','56789986275','{\"data\":{\"awardId\":102,\"awardTitle\":\"OpenAI会员卡\",\"userId\":\"xiaofuge\"},\"id\":\"56789986275\",\"timestamp\":1714201214179}','completed','2024-04-27 15:00:14','2024-04-27 15:00:14'),
+-	(82,'xiaofuge','send_award','05612212348','{\"data\":{\"awardId\":104,\"awardTitle\":\"小米台灯\",\"userId\":\"xiaofuge\"},\"id\":\"05612212348\",\"timestamp\":1714201222825}','completed','2024-04-27 15:00:22','2024-04-27 15:00:22');
++	(82,'xiaofuge','send_award','05612212348','{\"data\":{\"awardId\":104,\"awardTitle\":\"小米台灯\",\"userId\":\"xiaofuge\"},\"id\":\"05612212348\",\"timestamp\":1714201222825}','completed','2024-04-27 15:00:22','2024-04-27 15:00:22'),
++	(83,'xiaofuge','send_rebate','35170430024','{\"data\":{\"bizId\":\"xiaofuge_sku_20240430\",\"rebateConfig\":\"9011\",\"rebateType\":\"sign\",\"userId\":\"xiaofuge\"},\"id\":\"35170430024\",\"timestamp\":1714471292871}','completed','2024-04-30 18:01:33','2024-04-30 18:01:33'),
++	(84,'xiaofuge','send_rebate','33541289034','{\"data\":{\"bizId\":\"xiaofuge_sku_20240430\",\"rebateConfig\":\"9011\",\"rebateType\":\"sign\",\"userId\":\"xiaofuge\"},\"id\":\"33541289034\",\"timestamp\":1714471544134}','completed','2024-04-30 18:05:44','2024-04-30 18:05:44'),
++	(85,'xiaofuge','send_rebate','42019106000','{\"data\":{\"bizId\":\"xiaofuge_integral_20240430\",\"rebateConfig\":\"10\",\"rebateType\":\"sign\",\"userId\":\"xiaofuge\"},\"id\":\"42019106000\",\"timestamp\":1714471544137}','completed','2024-04-30 18:05:44','2024-04-30 18:05:44');
+ 
+ /*!40000 ALTER TABLE `task` ENABLE KEYS */;
+ UNLOCK TABLES;
+@@ -599,6 +544,112 @@ CREATE TABLE `user_award_record_003` (
+ 
+ 
+ 
++# 转储表 user_behavior_rebate_order_000
++# ------------------------------------------------------------
++
++DROP TABLE IF EXISTS `user_behavior_rebate_order_000`;
++
++CREATE TABLE `user_behavior_rebate_order_000` (
++  `id` int(11) unsigned NOT NULL AUTO_INCREMENT COMMENT '自增ID',
++  `user_id` varchar(32) NOT NULL COMMENT '用户ID',
++  `order_id` varchar(12) NOT NULL COMMENT '订单ID',
++  `behavior_type` varchar(16) NOT NULL COMMENT '行为类型（sign 签到、openai_pay 支付）',
++  `rebate_desc` varchar(128) NOT NULL COMMENT '返利描述',
++  `rebate_type` varchar(16) NOT NULL COMMENT '返利类型（sku 活动库存充值商品、integral 用户活动积分）',
++  `rebate_config` varchar(32) NOT NULL COMMENT '返利配置【sku值，积分值】',
++  `biz_id` varchar(64) NOT NULL COMMENT '业务ID - 拼接的唯一值',
++  `create_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
++  `update_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
++  PRIMARY KEY (`id`),
++  UNIQUE KEY `uq_order_id` (`order_id`),
++  UNIQUE KEY `uq_biz_id` (`biz_id`),
++  KEY `idx_user_id` (`user_id`)
++) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='用户行为返利流水订单表';
++
++
++
++# 转储表 user_behavior_rebate_order_001
++# ------------------------------------------------------------
++
++DROP TABLE IF EXISTS `user_behavior_rebate_order_001`;
++
++CREATE TABLE `user_behavior_rebate_order_001` (
++  `id` int(11) unsigned NOT NULL AUTO_INCREMENT COMMENT '自增ID',
++  `user_id` varchar(32) NOT NULL COMMENT '用户ID',
++  `order_id` varchar(12) NOT NULL COMMENT '订单ID',
++  `behavior_type` varchar(16) NOT NULL COMMENT '行为类型（sign 签到、openai_pay 支付）',
++  `rebate_desc` varchar(128) NOT NULL COMMENT '返利描述',
++  `rebate_type` varchar(16) NOT NULL COMMENT '返利类型（sku 活动库存充值商品、integral 用户活动积分）',
++  `rebate_config` varchar(32) NOT NULL COMMENT '返利配置【sku值，积分值】',
++  `biz_id` varchar(64) NOT NULL COMMENT '业务ID - 拼接的唯一值',
++  `create_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
++  `update_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
++  PRIMARY KEY (`id`),
++  UNIQUE KEY `uq_order_id` (`order_id`),
++  UNIQUE KEY `uq_biz_id` (`biz_id`),
++  KEY `idx_user_id` (`user_id`)
++) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='用户行为返利流水订单表';
++
++LOCK TABLES `user_behavior_rebate_order_001` WRITE;
++/*!40000 ALTER TABLE `user_behavior_rebate_order_001` DISABLE KEYS */;
++
++INSERT INTO `user_behavior_rebate_order_001` (`id`, `user_id`, `order_id`, `behavior_type`, `rebate_desc`, `rebate_type`, `rebate_config`, `biz_id`, `create_time`, `update_time`)
++VALUES
++	(1,'xiaofuge','833814327101','sign','签到返利','sku','9011','xiaofuge_sku_20240430','2024-04-30 18:01:32','2024-04-30 18:01:32'),
++	(3,'xiaofuge','509399206701','sign','签到返利-积分','integral','10','xiaofuge_integral_20240430','2024-04-30 18:05:44','2024-04-30 18:05:44');
++
++/*!40000 ALTER TABLE `user_behavior_rebate_order_001` ENABLE KEYS */;
++UNLOCK TABLES;
++
++
++# 转储表 user_behavior_rebate_order_002
++# ------------------------------------------------------------
++
++DROP TABLE IF EXISTS `user_behavior_rebate_order_002`;
++
++CREATE TABLE `user_behavior_rebate_order_002` (
++  `id` int(11) unsigned NOT NULL AUTO_INCREMENT COMMENT '自增ID',
++  `user_id` varchar(32) NOT NULL COMMENT '用户ID',
++  `order_id` varchar(12) NOT NULL COMMENT '订单ID',
++  `behavior_type` varchar(16) NOT NULL COMMENT '行为类型（sign 签到、openai_pay 支付）',
++  `rebate_desc` varchar(128) NOT NULL COMMENT '返利描述',
++  `rebate_type` varchar(16) NOT NULL COMMENT '返利类型（sku 活动库存充值商品、integral 用户活动积分）',
++  `rebate_config` varchar(32) NOT NULL COMMENT '返利配置【sku值，积分值】',
++  `biz_id` varchar(64) NOT NULL COMMENT '业务ID - 拼接的唯一值',
++  `create_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
++  `update_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
++  PRIMARY KEY (`id`),
++  UNIQUE KEY `uq_order_id` (`order_id`),
++  UNIQUE KEY `uq_biz_id` (`biz_id`),
++  KEY `idx_user_id` (`user_id`)
++) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='用户行为返利流水订单表';
++
++
++
++# 转储表 user_behavior_rebate_order_003
++# ------------------------------------------------------------
++
++DROP TABLE IF EXISTS `user_behavior_rebate_order_003`;
++
++CREATE TABLE `user_behavior_rebate_order_003` (
++  `id` int(11) unsigned NOT NULL AUTO_INCREMENT COMMENT '自增ID',
++  `user_id` varchar(32) NOT NULL COMMENT '用户ID',
++  `order_id` varchar(12) NOT NULL COMMENT '订单ID',
++  `behavior_type` varchar(16) NOT NULL COMMENT '行为类型（sign 签到、openai_pay 支付）',
++  `rebate_desc` varchar(128) NOT NULL COMMENT '返利描述',
++  `rebate_type` varchar(16) NOT NULL COMMENT '返利类型（sku 活动库存充值商品、integral 用户活动积分）',
++  `rebate_config` varchar(32) NOT NULL COMMENT '返利配置【sku值，积分值】',
++  `biz_id` varchar(64) NOT NULL COMMENT '业务ID - 拼接的唯一值',
++  `create_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
++  `update_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
++  PRIMARY KEY (`id`),
++  UNIQUE KEY `uq_order_id` (`order_id`),
++  UNIQUE KEY `uq_biz_id` (`biz_id`),
++  KEY `idx_user_id` (`user_id`)
++) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='用户行为返利流水订单表';
++
++
++
+ # 转储表 user_raffle_order_000
+ # ------------------------------------------------------------
+ 
+diff --git a/docs/dev-ops/mysql/sql/big_market_02.sql b/docs/dev-ops/mysql/sql/big_market_02.sql
+index 522f5e9..d1f2c4c 100644
+--- a/docs/dev-ops/mysql/sql/big_market_02.sql
++++ b/docs/dev-ops/mysql/sql/big_market_02.sql
+@@ -7,7 +7,7 @@
+ #
+ # 主机: 127.0.0.1 (MySQL 5.6.39)
+ # 数据库: big_market_02
+-# 生成时间: 2024-04-27 07:50:58 +0000
++# 生成时间: 2024-04-30 10:18:59 +0000
+ # ************************************************************
+ 
+ 
+@@ -345,6 +345,102 @@ CREATE TABLE `user_award_record_003` (
+ 
+ 
+ 
++# 转储表 user_behavior_rebate_order_001
++# ------------------------------------------------------------
++
++DROP TABLE IF EXISTS `user_behavior_rebate_order_001`;
++
++CREATE TABLE `user_behavior_rebate_order_001` (
++  `id` int(11) unsigned NOT NULL AUTO_INCREMENT COMMENT '自增ID',
++  `user_id` varchar(32) NOT NULL COMMENT '用户ID',
++  `order_id` varchar(12) NOT NULL COMMENT '订单ID',
++  `behavior_type` varchar(16) NOT NULL COMMENT '行为类型（sign 签到、openai_pay 支付）',
++  `rebate_desc` varchar(128) NOT NULL COMMENT '返利描述',
++  `rebate_type` varchar(16) NOT NULL COMMENT '返利类型（sku 活动库存充值商品、integral 用户活动积分）',
++  `rebate_config` varchar(32) NOT NULL COMMENT '返利配置【sku值，积分值】',
++  `biz_id` varchar(64) NOT NULL COMMENT '业务ID - 拼接的唯一值',
++  `create_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
++  `update_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
++  PRIMARY KEY (`id`),
++  UNIQUE KEY `uq_order_id` (`order_id`),
++  UNIQUE KEY `uq_biz_id` (`biz_id`),
++  KEY `idx_user_id` (`user_id`)
++) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='用户行为返利流水订单表';
++
++
++
++# 转储表 user_behavior_rebate_order_002
++# ------------------------------------------------------------
++
++DROP TABLE IF EXISTS `user_behavior_rebate_order_002`;
++
++CREATE TABLE `user_behavior_rebate_order_002` (
++  `id` int(11) unsigned NOT NULL AUTO_INCREMENT COMMENT '自增ID',
++  `user_id` varchar(32) NOT NULL COMMENT '用户ID',
++  `order_id` varchar(12) NOT NULL COMMENT '订单ID',
++  `behavior_type` varchar(16) NOT NULL COMMENT '行为类型（sign 签到、openai_pay 支付）',
++  `rebate_desc` varchar(128) NOT NULL COMMENT '返利描述',
++  `rebate_type` varchar(16) NOT NULL COMMENT '返利类型（sku 活动库存充值商品、integral 用户活动积分）',
++  `rebate_config` varchar(32) NOT NULL COMMENT '返利配置【sku值，积分值】',
++  `biz_id` varchar(64) NOT NULL COMMENT '业务ID - 拼接的唯一值',
++  `create_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
++  `update_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
++  PRIMARY KEY (`id`),
++  UNIQUE KEY `uq_order_id` (`order_id`),
++  UNIQUE KEY `uq_biz_id` (`biz_id`),
++  KEY `idx_user_id` (`user_id`)
++) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='用户行为返利流水订单表';
++
++
++
++# 转储表 user_behavior_rebate_order_003
++# ------------------------------------------------------------
++
++DROP TABLE IF EXISTS `user_behavior_rebate_order_003`;
++
++CREATE TABLE `user_behavior_rebate_order_003` (
++  `id` int(11) unsigned NOT NULL AUTO_INCREMENT COMMENT '自增ID',
++  `user_id` varchar(32) NOT NULL COMMENT '用户ID',
++  `order_id` varchar(12) NOT NULL COMMENT '订单ID',
++  `behavior_type` varchar(16) NOT NULL COMMENT '行为类型（sign 签到、openai_pay 支付）',
++  `rebate_desc` varchar(128) NOT NULL COMMENT '返利描述',
++  `rebate_type` varchar(16) NOT NULL COMMENT '返利类型（sku 活动库存充值商品、integral 用户活动积分）',
++  `rebate_config` varchar(32) NOT NULL COMMENT '返利配置【sku值，积分值】',
++  `biz_id` varchar(64) NOT NULL COMMENT '业务ID - 拼接的唯一值',
++  `create_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
++  `update_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
++  PRIMARY KEY (`id`),
++  UNIQUE KEY `uq_order_id` (`order_id`),
++  UNIQUE KEY `uq_biz_id` (`biz_id`),
++  KEY `idx_user_id` (`user_id`)
++) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='用户行为返利流水订单表';
++
++
++
++# 转储表 user_behavior_rebate_order_004
++# ------------------------------------------------------------
++
++DROP TABLE IF EXISTS `user_behavior_rebate_order_004`;
++
++CREATE TABLE `user_behavior_rebate_order_004` (
++  `id` int(11) unsigned NOT NULL AUTO_INCREMENT COMMENT '自增ID',
++  `user_id` varchar(32) NOT NULL COMMENT '用户ID',
++  `order_id` varchar(12) NOT NULL COMMENT '订单ID',
++  `behavior_type` varchar(16) NOT NULL COMMENT '行为类型（sign 签到、openai_pay 支付）',
++  `rebate_desc` varchar(128) NOT NULL COMMENT '返利描述',
++  `rebate_type` varchar(16) NOT NULL COMMENT '返利类型（sku 活动库存充值商品、integral 用户活动积分）',
++  `rebate_config` varchar(32) NOT NULL COMMENT '返利配置【sku值，积分值】',
++  `biz_id` varchar(64) NOT NULL COMMENT '业务ID - 拼接的唯一值',
++  `create_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
++  `update_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
++  PRIMARY KEY (`id`),
++  UNIQUE KEY `uq_order_id` (`order_id`),
++  UNIQUE KEY `uq_biz_id` (`biz_id`),
++  KEY `idx_user_id` (`user_id`)
++) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='用户行为返利流水订单表';
++
++
++
+ # 转储表 user_raffle_order_000
+ # ------------------------------------------------------------
+ 
