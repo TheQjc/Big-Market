@@ -9,7 +9,7 @@ import org.springframework.stereotype.Component;
 
 /**
  * @author Fuzhengwei bugstack.cn @小傅哥
- * @description 消息发送
+ * @description 消息发送 封装 RabbitTemplate，将领域层定义的 BaseEvent 序列化为 JSON 并发送到 RabbitMQ。这是领域事件发布的具体适配器
  * @create 2024-03-30 12:40
  */
 @Slf4j
