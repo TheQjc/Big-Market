@@ -1,0 +1,492 @@
+commit 4c1fd9d96fdc16a9899771d5f2867c6e44e46734
+Author: 小傅哥 <184172133@qq.com>
+Date:   Thu May 2 06:20:58 2024 +0800
+
+    feat：营销服务 第23节：用户行为返利结算
+
+diff --git a/big-market-api/src/main/java/cn/bugstack/trigger/api/IRaffleActivityService.java b/big-market-api/src/main/java/cn/bugstack/trigger/api/IRaffleActivityService.java
+index 10c6b1e..013ddce 100644
+--- a/big-market-api/src/main/java/cn/bugstack/trigger/api/IRaffleActivityService.java
++++ b/big-market-api/src/main/java/cn/bugstack/trigger/api/IRaffleActivityService.java
+@@ -3,6 +3,7 @@ package cn.bugstack.trigger.api;
+ import cn.bugstack.trigger.api.dto.ActivityDrawRequestDTO;
+ import cn.bugstack.trigger.api.dto.ActivityDrawResponseDTO;
+ import cn.bugstack.types.model.Response;
++import org.springframework.web.bind.annotation.RequestParam;
+ 
+ /**
+  * @author Fuzhengwei bugstack.cn @小傅哥
+@@ -13,6 +14,7 @@ public interface IRaffleActivityService {
+ 
+     /**
+      * 活动装配，数据预热缓存
++     *
+      * @param activityId 活动ID
+      * @return 装配结果
+      */
+@@ -20,9 +22,18 @@ public interface IRaffleActivityService {
+ 
+     /**
+      * 活动抽奖接口
++     *
+      * @param request 请求对象
+      * @return 返回结果
+      */
+     Response<ActivityDrawResponseDTO> draw(ActivityDrawRequestDTO request);
+ 
++    /**
++     * 日历签到返利接口
++     *
++     * @param userId 用户ID
++     * @return 签到结果
++     */
++    Response<Boolean> calendarSignRebate(String userId);
++
+ }
+diff --git a/big-market-app/src/main/resources/mybatis/mapper/raffle_activity_account_day_mapper.xml b/big-market-app/src/main/resources/mybatis/mapper/raffle_activity_account_day_mapper.xml
+index 858650c..eecfc36 100644
+--- a/big-market-app/src/main/resources/mybatis/mapper/raffle_activity_account_day_mapper.xml
++++ b/big-market-app/src/main/resources/mybatis/mapper/raffle_activity_account_day_mapper.xml
+@@ -38,4 +38,12 @@
+         where user_id = #{userId} and activity_id = #{activityId} and day = #{day}
+     </select>
+ 
++    <update id="addAccountQuota" parameterType="cn.bugstack.infrastructure.persistent.po.RaffleActivityAccountDay">
++        update raffle_activity_account_day
++        set day_count_surplus = day_count_surplus + #{dayCountSurplus},
++            day_count = day_count + #{dayCount},
++            update_time = now()
++        where user_id = #{userId} and activity_id = #{activityId} and day = #{day}
++    </update>
++
+ </mapper>
+diff --git a/big-market-app/src/main/resources/mybatis/mapper/raffle_activity_account_month_mapper.xml b/big-market-app/src/main/resources/mybatis/mapper/raffle_activity_account_month_mapper.xml
+index aa0cb2f..cf00049 100644
+--- a/big-market-app/src/main/resources/mybatis/mapper/raffle_activity_account_month_mapper.xml
++++ b/big-market-app/src/main/resources/mybatis/mapper/raffle_activity_account_month_mapper.xml
+@@ -32,4 +32,12 @@
+         where user_id = #{userId} and activity_id = #{activityId} and month = #{month} and month_count_surplus > 0
+     </update>
+ 
++    <update id="addAccountQuota" parameterType="cn.bugstack.infrastructure.persistent.po.RaffleActivityAccountMonth">
++        update raffle_activity_account_month
++        set month_count_surplus = month_count_surplus + #{monthCountSurplus},
++            month_count = month_count + #{monthCount},
++            update_time = now()
++        where user_id = #{userId} and activity_id = #{activityId} and month = #{month}
++    </update>
++
+ </mapper>
+diff --git a/big-market-app/src/test/java/cn/bugstack/test/domain/rebate/BehaviorRebateServiceTest.java b/big-market-app/src/test/java/cn/bugstack/test/domain/rebate/BehaviorRebateServiceTest.java
+index 7dfb6d4..665873d 100644
+--- a/big-market-app/src/test/java/cn/bugstack/test/domain/rebate/BehaviorRebateServiceTest.java
++++ b/big-market-app/src/test/java/cn/bugstack/test/domain/rebate/BehaviorRebateServiceTest.java
+@@ -1,10 +1,12 @@
+ package cn.bugstack.test.domain.rebate;
+ 
++import cn.bugstack.domain.activity.service.armory.IActivityArmory;
+ import cn.bugstack.domain.rebate.model.entity.BehaviorEntity;
+ import cn.bugstack.domain.rebate.model.valobj.BehaviorTypeVO;
+ import cn.bugstack.domain.rebate.service.IBehaviorRebateService;
+ import com.alibaba.fastjson2.JSON;
+ import lombok.extern.slf4j.Slf4j;
++import org.junit.Before;
+ import org.junit.Test;
+ import org.junit.runner.RunWith;
+ import org.springframework.boot.test.context.SpringBootTest;
+@@ -12,6 +14,7 @@ import org.springframework.test.context.junit4.SpringRunner;
+ 
+ import javax.annotation.Resource;
+ import java.util.List;
++import java.util.concurrent.CountDownLatch;
+ 
+ /**
+  * @author Fuzhengwei bugstack.cn @小傅哥
+@@ -26,17 +29,27 @@ public class BehaviorRebateServiceTest {
+     @Resource
+     private IBehaviorRebateService behaviorRebateService;
+ 
++    @Resource
++    private IActivityArmory activityArmory;
++
++    @Before
++    public void init() {
++        activityArmory.assembleActivitySkuByActivityId(100301L);
++    }
++
+     @Test
+-    public void test_createOrder() {
++    public void test_createOrder() throws InterruptedException {
+         BehaviorEntity behaviorEntity = new BehaviorEntity();
+         behaviorEntity.setUserId("xiaofuge");
+         behaviorEntity.setBehaviorTypeVO(BehaviorTypeVO.SIGN);
+         // 重复的 OutBusinessNo 会报错唯一索引冲突，这也是保证幂等的手段，确保不会多记账
+-        behaviorEntity.setOutBusinessNo("20240429");
++        behaviorEntity.setOutBusinessNo("2024042906");
+ 
+         List<String> orderIds = behaviorRebateService.createOrder(behaviorEntity);
+         log.info("请求参数：{}", JSON.toJSONString(behaviorEntity));
+         log.info("测试结果：{}", JSON.toJSONString(orderIds));
++
++        new CountDownLatch(1).await();
+     }
+ 
+ }
+diff --git a/big-market-app/src/test/java/cn/bugstack/test/trigger/RaffleActivityControllerTest.java b/big-market-app/src/test/java/cn/bugstack/test/trigger/RaffleActivityControllerTest.java
+index b233cee..61c5b15 100644
+--- a/big-market-app/src/test/java/cn/bugstack/test/trigger/RaffleActivityControllerTest.java
++++ b/big-market-app/src/test/java/cn/bugstack/test/trigger/RaffleActivityControllerTest.java
+@@ -34,12 +34,20 @@ public class RaffleActivityControllerTest {
+ 
+     @Test
+     public void test_draw() {
+-        ActivityDrawRequestDTO request = new ActivityDrawRequestDTO();
+-        request.setActivityId(100301L);
+-        request.setUserId("xiaofuge");
+-        Response<ActivityDrawResponseDTO> response = raffleActivityService.draw(request);
++        for (int i = 0; i < 20; i++) {
++            ActivityDrawRequestDTO request = new ActivityDrawRequestDTO();
++            request.setActivityId(100301L);
++            request.setUserId("xiaofuge");
++            Response<ActivityDrawResponseDTO> response = raffleActivityService.draw(request);
++
++            log.info("请求参数：{}", JSON.toJSONString(request));
++            log.info("测试结果：{}", JSON.toJSONString(response));
++        }
++    }
+ 
+-        log.info("请求参数：{}", JSON.toJSONString(request));
++    @Test
++    public void test_calendarSignRebate(){
++        Response<Boolean> response = raffleActivityService.calendarSignRebate("xiaofuge");
+         log.info("测试结果：{}", JSON.toJSONString(response));
+     }
+ 
+diff --git a/big-market-domain/src/main/java/cn/bugstack/domain/rebate/model/valobj/RebateTypeVO.java b/big-market-domain/src/main/java/cn/bugstack/domain/rebate/model/valobj/RebateTypeVO.java
+new file mode 100644
+index 0000000..287a690
+--- /dev/null
++++ b/big-market-domain/src/main/java/cn/bugstack/domain/rebate/model/valobj/RebateTypeVO.java
+@@ -0,0 +1,22 @@
++package cn.bugstack.domain.rebate.model.valobj;
++
++import lombok.AllArgsConstructor;
++import lombok.Getter;
++
++/**
++ * @author Fuzhengwei bugstack.cn @小傅哥
++ * @description 返利类型（sku 活动库存充值商品、integral 用户活动积分）
++ * @create 2024-05-01 14:09
++ */
++@Getter
++@AllArgsConstructor
++public enum RebateTypeVO {
++
++    SKU("sku", "活动库存充值商品"),
++    INTEGRAL("integral", "用户活动积分"),
++    ;
++
++    private final String code;
++    private final String info;
++
++}
+diff --git a/big-market-domain/src/main/java/cn/bugstack/domain/rebate/service/BehaviorRebateService.java b/big-market-domain/src/main/java/cn/bugstack/domain/rebate/service/BehaviorRebateService.java
+index 8bd5351..4d4fa27 100644
+--- a/big-market-domain/src/main/java/cn/bugstack/domain/rebate/service/BehaviorRebateService.java
++++ b/big-market-domain/src/main/java/cn/bugstack/domain/rebate/service/BehaviorRebateService.java
+@@ -56,7 +56,7 @@ public class BehaviorRebateService implements IBehaviorRebateService {
+             // MQ 消息对象
+             SendRebateMessageEvent.RebateMessage rebateMessage = SendRebateMessageEvent.RebateMessage.builder()
+                     .userId(behaviorEntity.getUserId())
+-                    .rebateType(dailyBehaviorRebateVO.getBehaviorType())
++                    .rebateType(dailyBehaviorRebateVO.getRebateType())
+                     .rebateConfig(dailyBehaviorRebateVO.getRebateConfig())
+                     .bizId(bizId)
+                     .build();
+diff --git a/big-market-infrastructure/src/main/java/cn/bugstack/infrastructure/persistent/dao/IRaffleActivityAccountDayDao.java b/big-market-infrastructure/src/main/java/cn/bugstack/infrastructure/persistent/dao/IRaffleActivityAccountDayDao.java
+index d8660c3..454fdb6 100644
+--- a/big-market-infrastructure/src/main/java/cn/bugstack/infrastructure/persistent/dao/IRaffleActivityAccountDayDao.java
++++ b/big-market-infrastructure/src/main/java/cn/bugstack/infrastructure/persistent/dao/IRaffleActivityAccountDayDao.java
+@@ -22,4 +22,6 @@ public interface IRaffleActivityAccountDayDao {
+     @DBRouter
+     Integer queryRaffleActivityAccountDayPartakeCount(RaffleActivityAccountDay raffleActivityAccountDay);
+ 
++    void addAccountQuota(RaffleActivityAccountDay raffleActivityAccountDay);
++
+ }
+diff --git a/big-market-infrastructure/src/main/java/cn/bugstack/infrastructure/persistent/dao/IRaffleActivityAccountMonthDao.java b/big-market-infrastructure/src/main/java/cn/bugstack/infrastructure/persistent/dao/IRaffleActivityAccountMonthDao.java
+index 8223671..09a0f2d 100644
+--- a/big-market-infrastructure/src/main/java/cn/bugstack/infrastructure/persistent/dao/IRaffleActivityAccountMonthDao.java
++++ b/big-market-infrastructure/src/main/java/cn/bugstack/infrastructure/persistent/dao/IRaffleActivityAccountMonthDao.java
+@@ -19,4 +19,6 @@ public interface IRaffleActivityAccountMonthDao {
+ 
+     void insertActivityAccountMonth(RaffleActivityAccountMonth raffleActivityAccountMonth);
+ 
++    void addAccountQuota(RaffleActivityAccountMonth raffleActivityAccountMonth);
++
+ }
+diff --git a/big-market-infrastructure/src/main/java/cn/bugstack/infrastructure/persistent/po/RaffleActivityAccountMonth.java b/big-market-infrastructure/src/main/java/cn/bugstack/infrastructure/persistent/po/RaffleActivityAccountMonth.java
+index 0c75de8..3ee1933 100644
+--- a/big-market-infrastructure/src/main/java/cn/bugstack/infrastructure/persistent/po/RaffleActivityAccountMonth.java
++++ b/big-market-infrastructure/src/main/java/cn/bugstack/infrastructure/persistent/po/RaffleActivityAccountMonth.java
+@@ -5,6 +5,7 @@ import lombok.Builder;
+ import lombok.Data;
+ import lombok.NoArgsConstructor;
+ 
++import java.text.SimpleDateFormat;
+ import java.util.Date;
+ 
+ /**
+@@ -18,6 +19,8 @@ import java.util.Date;
+ @NoArgsConstructor
+ public class RaffleActivityAccountMonth {
+ 
++    private final SimpleDateFormat dateFormatMonth = new SimpleDateFormat("yyyy-MM");
++
+     /** 自增ID */
+     private String id;
+     /** 用户ID */
+@@ -35,4 +38,8 @@ public class RaffleActivityAccountMonth {
+     /** 更新时间 */
+     private Date updateTime;
+ 
++    public String currentMonth() {
++        return dateFormatMonth.format(new Date());
++    }
++
+ }
+diff --git a/big-market-infrastructure/src/main/java/cn/bugstack/infrastructure/persistent/repository/ActivityRepository.java b/big-market-infrastructure/src/main/java/cn/bugstack/infrastructure/persistent/repository/ActivityRepository.java
+index c9bc967..faf111b 100644
+--- a/big-market-infrastructure/src/main/java/cn/bugstack/infrastructure/persistent/repository/ActivityRepository.java
++++ b/big-market-infrastructure/src/main/java/cn/bugstack/infrastructure/persistent/repository/ActivityRepository.java
+@@ -143,7 +143,7 @@ public class ActivityRepository implements IActivityRepository {
+             raffleActivityOrder.setState(activityOrderEntity.getState().getCode());
+             raffleActivityOrder.setOutBusinessNo(activityOrderEntity.getOutBusinessNo());
+ 
+-            // 账户对象
++            // 账户对象 - 总
+             RaffleActivityAccount raffleActivityAccount = new RaffleActivityAccount();
+             raffleActivityAccount.setUserId(createOrderAggregate.getUserId());
+             raffleActivityAccount.setActivityId(createOrderAggregate.getActivityId());
+@@ -154,6 +154,22 @@ public class ActivityRepository implements IActivityRepository {
+             raffleActivityAccount.setMonthCount(createOrderAggregate.getMonthCount());
+             raffleActivityAccount.setMonthCountSurplus(createOrderAggregate.getMonthCount());
+ 
++            // 账户对象 - 月
++            RaffleActivityAccountMonth raffleActivityAccountMonth = new RaffleActivityAccountMonth();
++            raffleActivityAccountMonth.setUserId(createOrderAggregate.getUserId());
++            raffleActivityAccountMonth.setActivityId(createOrderAggregate.getActivityId());
++            raffleActivityAccountMonth.setMonth(raffleActivityAccountMonth.currentMonth());
++            raffleActivityAccountMonth.setMonthCount(createOrderAggregate.getMonthCount());
++            raffleActivityAccountMonth.setMonthCountSurplus(createOrderAggregate.getMonthCount());
++
++            // 账户对象 - 日
++            RaffleActivityAccountDay raffleActivityAccountDay = new RaffleActivityAccountDay();
++            raffleActivityAccountDay.setUserId(createOrderAggregate.getUserId());
++            raffleActivityAccountDay.setActivityId(createOrderAggregate.getActivityId());
++            raffleActivityAccountDay.setDay(raffleActivityAccountDay.currentDay());
++            raffleActivityAccountDay.setDayCount(createOrderAggregate.getDayCount());
++            raffleActivityAccountDay.setDayCountSurplus(createOrderAggregate.getDayCount());
++
+             // 以用户ID作为切分键，通过 doRouter 设定路由【这样就保证了下面的操作，都是同一个链接下，也就保证了事务的特性】
+             dbRouter.doRouter(createOrderAggregate.getUserId());
+             // 编程式事务
+@@ -161,12 +177,16 @@ public class ActivityRepository implements IActivityRepository {
+                 try {
+                     // 1. 写入订单
+                     raffleActivityOrderDao.insert(raffleActivityOrder);
+-                    // 2. 更新账户
++                    // 2. 更新账户 - 总
+                     int count = raffleActivityAccountDao.updateAccountQuota(raffleActivityAccount);
+-                    // 3. 创建账户 - 更新为0，则账户不存在，创新新账户。
++                    // 3. 创建账户 - 更新为0，则账户不存在，创新新账户
+                     if (0 == count) {
+                         raffleActivityAccountDao.insert(raffleActivityAccount);
+                     }
++                    // 4. 更新账户 - 月
++                    raffleActivityAccountMonthDao.addAccountQuota(raffleActivityAccountMonth);
++                    // 5. 更新账户 - 日
++                    raffleActivityAccountDayDao.addAccountQuota(raffleActivityAccountDay);
+                     return 1;
+                 } catch (DuplicateKeyException e) {
+                     status.setRollbackOnly();
+diff --git a/big-market-infrastructure/src/main/java/cn/bugstack/infrastructure/persistent/repository/BehaviorRebateRepository.java b/big-market-infrastructure/src/main/java/cn/bugstack/infrastructure/persistent/repository/BehaviorRebateRepository.java
+index 41a85c8..dd8d9b5 100644
+--- a/big-market-infrastructure/src/main/java/cn/bugstack/infrastructure/persistent/repository/BehaviorRebateRepository.java
++++ b/big-market-infrastructure/src/main/java/cn/bugstack/infrastructure/persistent/repository/BehaviorRebateRepository.java
+@@ -96,7 +96,7 @@ public class BehaviorRebateRepository implements IBehaviorRebateRepository {
+                 } catch (DuplicateKeyException e) {
+                     status.setRollbackOnly();
+                     log.error("写入返利记录，唯一索引冲突 userId: {}", userId, e);
+-                    throw new AppException(ResponseCode.INDEX_DUP.getCode(), e);
++                    throw new AppException(ResponseCode.INDEX_DUP.getCode(), ResponseCode.INDEX_DUP.getInfo());
+                 }
+             });
+         } finally {
+diff --git a/big-market-trigger/src/main/java/cn/bugstack/trigger/http/RaffleActivityController.java b/big-market-trigger/src/main/java/cn/bugstack/trigger/http/RaffleActivityController.java
+index 5a3a03d..e986eaf 100644
+--- a/big-market-trigger/src/main/java/cn/bugstack/trigger/http/RaffleActivityController.java
++++ b/big-market-trigger/src/main/java/cn/bugstack/trigger/http/RaffleActivityController.java
+@@ -6,6 +6,9 @@ import cn.bugstack.domain.activity.service.armory.IActivityArmory;
+ import cn.bugstack.domain.award.model.entity.UserAwardRecordEntity;
+ import cn.bugstack.domain.award.model.valobj.AwardStateVO;
+ import cn.bugstack.domain.award.service.IAwardService;
++import cn.bugstack.domain.rebate.model.entity.BehaviorEntity;
++import cn.bugstack.domain.rebate.model.valobj.BehaviorTypeVO;
++import cn.bugstack.domain.rebate.service.IBehaviorRebateService;
+ import cn.bugstack.domain.strategy.model.entity.RaffleAwardEntity;
+ import cn.bugstack.domain.strategy.model.entity.RaffleFactorEntity;
+ import cn.bugstack.domain.strategy.service.IRaffleStrategy;
+@@ -16,12 +19,15 @@ import cn.bugstack.trigger.api.dto.ActivityDrawResponseDTO;
+ import cn.bugstack.types.enums.ResponseCode;
+ import cn.bugstack.types.exception.AppException;
+ import cn.bugstack.types.model.Response;
++import com.alibaba.fastjson.JSON;
+ import lombok.extern.slf4j.Slf4j;
+ import org.apache.commons.lang3.StringUtils;
+ import org.springframework.web.bind.annotation.*;
+ 
+ import javax.annotation.Resource;
++import java.text.SimpleDateFormat;
+ import java.util.Date;
++import java.util.List;
+ 
+ /**
+  * @author Fuzhengwei bugstack.cn @小傅哥
+@@ -34,6 +40,8 @@ import java.util.Date;
+ @RequestMapping("/api/${app.config.api-version}/raffle/activity/")
+ public class RaffleActivityController implements IRaffleActivityService {
+ 
++    private final SimpleDateFormat dateFormatDay = new SimpleDateFormat("yyyyMMdd");
++
+     @Resource
+     private IRaffleActivityPartakeService raffleActivityPartakeService;
+     @Resource
+@@ -44,6 +52,8 @@ public class RaffleActivityController implements IRaffleActivityService {
+     private IActivityArmory activityArmory;
+     @Resource
+     private IStrategyArmory strategyArmory;
++    @Resource
++    private IBehaviorRebateService behaviorRebateService;
+ 
+     /**
+      * 活动装配 - 数据预热 | 把活动配置的对应的 sku 一起装配
+@@ -154,4 +164,47 @@ public class RaffleActivityController implements IRaffleActivityService {
+         }
+     }
+ 
++    /**
++     * 日历签到返利接口
++     *
++     * @param userId 用户ID
++     * @return 签到返利结果
++     * <p>
++     * 接口：<a href="http://localhost:8091/api/v1/raffle/activity/calendar_sign_rebate">/api/v1/raffle/activity/calendar_sign_rebate</a>
++     * 入参：xiaofuge
++     * <p>
++     * curl -X POST http://localhost:8091/api/v1/raffle/activity/calendar_sign_rebate -d "userId=xiaofuge" -H "Content-Type: application/x-www-form-urlencoded"
++     */
++    @RequestMapping(value = "calendar_sign_rebate", method = RequestMethod.POST)
++    @Override
++    public Response<Boolean> calendarSignRebate(@RequestParam String userId) {
++        try {
++            log.info("日历签到返利开始 userId:{}", userId);
++            BehaviorEntity behaviorEntity = new BehaviorEntity();
++            behaviorEntity.setUserId(userId);
++            behaviorEntity.setBehaviorTypeVO(BehaviorTypeVO.SIGN);
++            behaviorEntity.setOutBusinessNo(dateFormatDay.format(new Date()));
++            List<String> orderIds = behaviorRebateService.createOrder(behaviorEntity);
++            log.info("日历签到返利完成 userId:{} orderIds: {}", userId, JSON.toJSONString(orderIds));
++            return Response.<Boolean>builder()
++                    .code(ResponseCode.SUCCESS.getCode())
++                    .info(ResponseCode.SUCCESS.getInfo())
++                    .data(true)
++                    .build();
++        } catch (AppException e) {
++            log.error("日历签到返利异常 userId:{} ", userId, e);
++            return Response.<Boolean>builder()
++                    .code(e.getCode())
++                    .info(e.getInfo())
++                    .build();
++        } catch (Exception e) {
++            log.error("日历签到返利失败 userId:{}", userId);
++            return Response.<Boolean>builder()
++                    .code(ResponseCode.UN_ERROR.getCode())
++                    .info(ResponseCode.UN_ERROR.getInfo())
++                    .data(false)
++                    .build();
++        }
++    }
++
+ }
+diff --git a/big-market-trigger/src/main/java/cn/bugstack/trigger/listener/RebateMessageCustomer.java b/big-market-trigger/src/main/java/cn/bugstack/trigger/listener/RebateMessageCustomer.java
+new file mode 100644
+index 0000000..965d42f
+--- /dev/null
++++ b/big-market-trigger/src/main/java/cn/bugstack/trigger/listener/RebateMessageCustomer.java
+@@ -0,0 +1,65 @@
++package cn.bugstack.trigger.listener;
++
++import cn.bugstack.domain.activity.model.entity.SkuRechargeEntity;
++import cn.bugstack.domain.activity.service.IRaffleActivityAccountQuotaService;
++import cn.bugstack.domain.rebate.event.SendRebateMessageEvent;
++import cn.bugstack.domain.rebate.model.valobj.RebateTypeVO;
++import cn.bugstack.types.enums.ResponseCode;
++import cn.bugstack.types.event.BaseEvent;
++import cn.bugstack.types.exception.AppException;
++import com.alibaba.fastjson2.JSON;
++import com.alibaba.fastjson2.TypeReference;
++import lombok.extern.slf4j.Slf4j;
++import org.springframework.amqp.rabbit.annotation.Queue;
++import org.springframework.amqp.rabbit.annotation.RabbitListener;
++import org.springframework.beans.factory.annotation.Value;
++import org.springframework.dao.DuplicateKeyException;
++import org.springframework.stereotype.Component;
++
++import javax.annotation.Resource;
++
++/**
++ * @author Fuzhengwei bugstack.cn @小傅哥
++ * @description 监听；行为返利消息
++ * @create 2024-05-01 13:58
++ */
++@Slf4j
++@Component
++public class RebateMessageCustomer {
++
++    @Value("${spring.rabbitmq.topic.send_rebate}")
++    private String topic;
++    @Resource
++    private IRaffleActivityAccountQuotaService raffleActivityAccountQuotaService;
++
++    @RabbitListener(queuesToDeclare = @Queue(value = "${spring.rabbitmq.topic.send_rebate}"))
++    public void listener(String message) {
++        try {
++            log.info("监听用户行为返利消息 topic: {} message: {}", topic, message);
++            // 1. 转换消息
++            BaseEvent.EventMessage<SendRebateMessageEvent.RebateMessage> eventMessage = JSON.parseObject(message, new TypeReference<BaseEvent.EventMessage<SendRebateMessageEvent.RebateMessage>>() {
++            }.getType());
++            SendRebateMessageEvent.RebateMessage rebateMessage = eventMessage.getData();
++            if (!RebateTypeVO.SKU.getCode().equals(rebateMessage.getRebateType())) {
++                log.info("监听用户行为返利消息 - 非sku奖励暂时不处理 topic: {} message: {}", topic, message);
++                return;
++            }
++            // 2. 入账奖励
++            SkuRechargeEntity skuRechargeEntity = new SkuRechargeEntity();
++            skuRechargeEntity.setUserId(rebateMessage.getUserId());
++            skuRechargeEntity.setSku(Long.valueOf(rebateMessage.getRebateConfig()));
++            skuRechargeEntity.setOutBusinessNo(rebateMessage.getBizId());
++            raffleActivityAccountQuotaService.createOrder(skuRechargeEntity);
++        } catch (AppException e) {
++            if (ResponseCode.INDEX_DUP.getCode().equals(e.getCode())) {
++                log.warn("监听用户行为返利消息，消费重复 topic: {} message: {}", topic, message, e);
++                return;
++            }
++            throw e;
++        } catch (Exception e) {
++            log.error("监听用户行为返利消息，消费失败 topic: {} message: {}", topic, message, e);
++            throw e;
++        }
++    }
++
++}
