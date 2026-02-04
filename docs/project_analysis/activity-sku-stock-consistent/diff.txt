@@ -1,0 +1,1083 @@
+commit 9fbb2fdfb5f808364e419e4de0f1ad0add9d33ea
+Author: 小傅哥 <184172133@qq.com>
+Date:   Sat Mar 23 18:02:10 2024 +0800
+
+    feat: 【营销服务】第15节：抽奖活动流水入库
+
+diff --git a/big-market-app/src/main/resources/mybatis/mapper/raffle_activity_account_mapper.xml b/big-market-app/src/main/resources/mybatis/mapper/raffle_activity_account_mapper.xml
+index a2c454d..d5b0d16 100644
+--- a/big-market-app/src/main/resources/mybatis/mapper/raffle_activity_account_mapper.xml
++++ b/big-market-app/src/main/resources/mybatis/mapper/raffle_activity_account_mapper.xml
+@@ -4,11 +4,38 @@
+ 
+     <resultMap id="dataMap" type="cn.bugstack.infrastructure.persistent.po.RaffleActivityAccount">
+         <id column="id" property="id"/>
+-        <result column="" property=""/>
++        <result column="user_id" property="userId"/>
++        <result column="activity_id" property="activityId"/>
++        <result column="total_count" property="totalCount"/>
++        <result column="total_count_surplus" property="totalCountSurplus"/>
++        <result column="day_count" property="dayCount"/>
++        <result column="day_count_surplus" property="dayCountSurplus"/>
++        <result column="month_count" property="monthCount"/>
++        <result column="month_count_surplus" property="monthCountSurplus"/>
+         <result column="create_time" property="createTime"/>
+         <result column="update_time" property="updateTime"/>
+     </resultMap>
+ 
++    <insert id="insert" parameterType="cn.bugstack.infrastructure.persistent.po.RaffleActivityAccount">
++        insert into raffle_activity_account
++        (user_id, activity_id, total_count, total_count_surplus, day_count,
++        day_count_surplus, month_count, month_count_surplus, create_time, update_time)
++        values
++        (#{userId}, #{activityId}, #{totalCount}, #{totalCountSurplus}, #{dayCount},
++         #{dayCountSurplus}, #{monthCount}, #{monthCountSurplus}, now(), now())
++    </insert>
+ 
++    <update id="updateAccountQuota" parameterType="cn.bugstack.infrastructure.persistent.po.RaffleActivityAccount">
++        update raffle_activity_account
++        set
++            total_count = total_count + #{totalCount},
++            total_count_surplus = total_count_surplus + #{totalCountSurplus},
++            day_count_surplus = day_count_surplus + #{dayCountSurplus},
++            day_count = day_count + #{dayCount},
++            month_count_surplus = month_count_surplus + #{monthCountSurplus},
++            month_count = month_count + #{monthCount},
++            update_time = now()
++        where user_id = #{userId} and activity_id = #{activityId}
++    </update>
+ 
+ </mapper>
+diff --git a/big-market-app/src/main/resources/mybatis/mapper/raffle_activity_order_mapper.xml b/big-market-app/src/main/resources/mybatis/mapper/raffle_activity_order_mapper.xml
+index 9b650ef..ddd6348 100644
+--- a/big-market-app/src/main/resources/mybatis/mapper/raffle_activity_order_mapper.xml
++++ b/big-market-app/src/main/resources/mybatis/mapper/raffle_activity_order_mapper.xml
+@@ -5,23 +5,32 @@
+     <resultMap id="dataMap" type="cn.bugstack.infrastructure.persistent.po.RaffleActivityOrder">
+         <id column="id" property="id"/>
+         <result column="user_id" property="userId"/>
++        <result column="sku" property="sku"/>
+         <result column="activity_id" property="activityId"/>
+         <result column="activity_name" property="activityName"/>
+         <result column="strategy_id" property="strategyId"/>
+         <result column="order_id" property="orderId"/>
+         <result column="order_time" property="orderTime"/>
++        <result column="total_count" property="totalCount"/>
++        <result column="day_count" property="dayCount"/>
++        <result column="month_count" property="monthCount"/>
+         <result column="state" property="state"/>
++        <result column="out_business_no" property="outBusinessNo"/>
+         <result column="create_time" property="createTime"/>
+         <result column="update_time" property="updateTime"/>
+     </resultMap>
+ 
+     <insert id="insert" parameterType="cn.bugstack.infrastructure.persistent.po.RaffleActivityOrder">
+-        insert into raffle_activity_order(user_id, activity_id, activity_name, strategy_id, order_id, order_time, state, create_time, update_time)
+-        values(#{userId}, #{activityId}, #{activityName}, #{strategyId}, #{orderId}, #{orderTime}, #{state}, now(), now())
++        insert into raffle_activity_order
++        (user_id, sku, activity_id, activity_name, strategy_id, order_id, order_time, state, out_business_no, total_count, day_count, month_count,
++        create_time, update_time)
++        values
++        (#{userId}, #{sku}, #{activityId}, #{activityName}, #{strategyId}, #{orderId}, #{orderTime}, #{state}, #{outBusinessNo}, #{totalCount}, #{dayCount}, #{monthCount},
++        now(), now())
+     </insert>
+ 
+     <select id="queryRaffleActivityOrderByUserId" parameterType="java.lang.String" resultMap="dataMap">
+-        select user_id, activity_id, activity_name, strategy_id, order_id, order_time, state
++        select user_id, sku, activity_id, activity_name, strategy_id, order_id, order_time, state
+         from raffle_activity_order
+         where user_id = #{userId}
+     </select>
+diff --git a/big-market-app/src/test/java/cn/bugstack/test/domain/activity/RaffleOrderTest.java b/big-market-app/src/test/java/cn/bugstack/test/domain/activity/RaffleOrderTest.java
+index 599bf01..bb95527 100644
+--- a/big-market-app/src/test/java/cn/bugstack/test/domain/activity/RaffleOrderTest.java
++++ b/big-market-app/src/test/java/cn/bugstack/test/domain/activity/RaffleOrderTest.java
+@@ -1,9 +1,7 @@
+ package cn.bugstack.test.domain.activity;
+ 
+-import cn.bugstack.domain.activity.model.entity.ActivityOrderEntity;
+-import cn.bugstack.domain.activity.model.entity.ActivityShopCartEntity;
++import cn.bugstack.domain.activity.model.entity.SkuRechargeEntity;
+ import cn.bugstack.domain.activity.service.IRaffleOrder;
+-import com.alibaba.fastjson.JSON;
+ import lombok.extern.slf4j.Slf4j;
+ import org.junit.Test;
+ import org.junit.runner.RunWith;
+@@ -26,12 +24,14 @@ public class RaffleOrderTest {
+     private IRaffleOrder raffleOrder;
+ 
+     @Test
+-    public void test_createRaffleActivityOrder() {
+-        ActivityShopCartEntity activityShopCartEntity = new ActivityShopCartEntity();
+-        activityShopCartEntity.setUserId("xiaofuge");
+-        activityShopCartEntity.setSku(9011L);
+-        ActivityOrderEntity raffleActivityOrder = raffleOrder.createRaffleActivityOrder(activityShopCartEntity);
+-        log.info("测试结果：{}", JSON.toJSONString(raffleActivityOrder));
++    public void test_createSkuRechargeOrder() {
++        SkuRechargeEntity skuRechargeEntity = new SkuRechargeEntity();
++        skuRechargeEntity.setUserId("xiaofuge");
++        skuRechargeEntity.setSku(9011L);
++        // outBusinessNo 作为幂等仿重使用，同一个业务单号2次使用会抛出索引冲突 Duplicate entry '700091009111' for key 'uq_out_business_no' 确保唯一性。
++        skuRechargeEntity.setOutBusinessNo("700091009111");
++        String orderId = raffleOrder.createSkuRechargeOrder(skuRechargeEntity);
++        log.info("测试结果：{}", orderId);
+     }
+ 
+ }
+diff --git a/big-market-domain/src/main/java/cn/bugstack/domain/activity/model/aggregate/CreateOrderAggregate.java b/big-market-domain/src/main/java/cn/bugstack/domain/activity/model/aggregate/CreateOrderAggregate.java
+index 4555944..0484344 100644
+--- a/big-market-domain/src/main/java/cn/bugstack/domain/activity/model/aggregate/CreateOrderAggregate.java
++++ b/big-market-domain/src/main/java/cn/bugstack/domain/activity/model/aggregate/CreateOrderAggregate.java
+@@ -19,9 +19,30 @@ import lombok.NoArgsConstructor;
+ public class CreateOrderAggregate {
+ 
+     /**
+-     * 活动账户实体
++     * 用户ID
+      */
+-    private ActivityAccountEntity activityAccountEntity;
++    private String userId;
++
++    /**
++     * 活动ID
++     */
++    private Long activityId;
++
++    /**
++     * 增加；总次数
++     */
++    private Integer totalCount;
++
++    /**
++     * 增加；日次数
++     */
++    private Integer dayCount;
++
++    /**
++     * 增加；月次数
++     */
++    private Integer monthCount;
++
+     /**
+      * 活动订单实体
+      */
+diff --git a/big-market-domain/src/main/java/cn/bugstack/domain/activity/model/entity/ActivityOrderEntity.java b/big-market-domain/src/main/java/cn/bugstack/domain/activity/model/entity/ActivityOrderEntity.java
+index 1913afb..c459b1e 100644
+--- a/big-market-domain/src/main/java/cn/bugstack/domain/activity/model/entity/ActivityOrderEntity.java
++++ b/big-market-domain/src/main/java/cn/bugstack/domain/activity/model/entity/ActivityOrderEntity.java
+@@ -24,6 +24,11 @@ public class ActivityOrderEntity {
+      */
+     private String userId;
+ 
++    /**
++     * sku
++     */
++    private Long sku;
++
+     /**
+      * 活动ID
+      */
+@@ -69,4 +74,9 @@ public class ActivityOrderEntity {
+      */
+     private OrderStateVO state;
+ 
++    /**
++     * 业务仿重ID - 外部透传的，确保幂等
++     */
++    private String outBusinessNo;
++
+ }
+diff --git a/big-market-domain/src/main/java/cn/bugstack/domain/activity/model/entity/ActivityShopCartEntity.java b/big-market-domain/src/main/java/cn/bugstack/domain/activity/model/entity/ActivityShopCartEntity.java
+deleted file mode 100644
+index 29b7920..0000000
+--- a/big-market-domain/src/main/java/cn/bugstack/domain/activity/model/entity/ActivityShopCartEntity.java
++++ /dev/null
+@@ -1,24 +0,0 @@
+-package cn.bugstack.domain.activity.model.entity;
+-
+-import lombok.AllArgsConstructor;
+-import lombok.Builder;
+-import lombok.Data;
+-import lombok.NoArgsConstructor;
+-
+-/**
+- * @author Fuzhengwei bugstack.cn @小傅哥
+- * @description 活动购物车实体对象
+- * @create 2024-03-16 08:53
+- */
+-@Data
+-@Builder
+-@AllArgsConstructor
+-@NoArgsConstructor
+-public class ActivityShopCartEntity {
+-
+-    /** 用户ID */
+-    private String userId;
+-    /** 商品SKU - activity + activity count */
+-    private Long sku;
+-
+-}
+diff --git a/big-market-domain/src/main/java/cn/bugstack/domain/activity/model/entity/SkuRechargeEntity.java b/big-market-domain/src/main/java/cn/bugstack/domain/activity/model/entity/SkuRechargeEntity.java
+new file mode 100644
+index 0000000..f73cc0b
+--- /dev/null
++++ b/big-market-domain/src/main/java/cn/bugstack/domain/activity/model/entity/SkuRechargeEntity.java
+@@ -0,0 +1,20 @@
++package cn.bugstack.domain.activity.model.entity;
++
++import lombok.Data;
++
++/**
++ * @author Fuzhengwei bugstack.cn @小傅哥
++ * @description 活动商品充值实体对象
++ * @create 2024-03-23 09:11
++ */
++@Data
++public class SkuRechargeEntity {
++
++    /** 用户ID */
++    private String userId;
++    /** 商品SKU - activity + activity count */
++    private Long sku;
++    /** 幂等业务单号，外部谁充值谁透传，这样来保证幂等（多次调用也能确保结果唯一，不会多次充值）。 */
++    private String outBusinessNo;
++
++}
+diff --git a/big-market-domain/src/main/java/cn/bugstack/domain/activity/repository/IActivityRepository.java b/big-market-domain/src/main/java/cn/bugstack/domain/activity/repository/IActivityRepository.java
+index 7ff2626..21b2625 100644
+--- a/big-market-domain/src/main/java/cn/bugstack/domain/activity/repository/IActivityRepository.java
++++ b/big-market-domain/src/main/java/cn/bugstack/domain/activity/repository/IActivityRepository.java
+@@ -1,5 +1,6 @@
+ package cn.bugstack.domain.activity.repository;
+ 
++import cn.bugstack.domain.activity.model.aggregate.CreateOrderAggregate;
+ import cn.bugstack.domain.activity.model.entity.ActivityCountEntity;
+ import cn.bugstack.domain.activity.model.entity.ActivityEntity;
+ import cn.bugstack.domain.activity.model.entity.ActivitySkuEntity;
+@@ -17,4 +18,6 @@ public interface IActivityRepository {
+ 
+     ActivityCountEntity queryRaffleActivityCountByActivityCountId(Long activityCountId);
+ 
++    void doSaveOrder(CreateOrderAggregate createOrderAggregate);
++
+ }
+diff --git a/big-market-domain/src/main/java/cn/bugstack/domain/activity/service/AbstractRaffleActivity.java b/big-market-domain/src/main/java/cn/bugstack/domain/activity/service/AbstractRaffleActivity.java
+index 40567ca..6b6d0a4 100644
+--- a/big-market-domain/src/main/java/cn/bugstack/domain/activity/service/AbstractRaffleActivity.java
++++ b/big-market-domain/src/main/java/cn/bugstack/domain/activity/service/AbstractRaffleActivity.java
+@@ -1,9 +1,15 @@
+ package cn.bugstack.domain.activity.service;
+ 
++import cn.bugstack.domain.activity.model.aggregate.CreateOrderAggregate;
+ import cn.bugstack.domain.activity.model.entity.*;
+ import cn.bugstack.domain.activity.repository.IActivityRepository;
++import cn.bugstack.domain.activity.service.rule.IActionChain;
++import cn.bugstack.domain.activity.service.rule.factory.DefaultActivityChainFactory;
++import cn.bugstack.types.enums.ResponseCode;
++import cn.bugstack.types.exception.AppException;
+ import com.alibaba.fastjson.JSON;
+ import lombok.extern.slf4j.Slf4j;
++import org.apache.commons.lang3.StringUtils;
+ 
+ /**
+  * @author Fuzhengwei bugstack.cn @小傅哥
+@@ -11,26 +17,46 @@ import lombok.extern.slf4j.Slf4j;
+  * @create 2024-03-16 08:42
+  */
+ @Slf4j
+-public abstract class AbstractRaffleActivity implements IRaffleOrder {
++public abstract class AbstractRaffleActivity extends RaffleActivitySupport implements IRaffleOrder {
+ 
+-    protected IActivityRepository activityRepository;
+-
+-    public AbstractRaffleActivity(IActivityRepository activityRepository) {
+-        this.activityRepository = activityRepository;
++    public AbstractRaffleActivity(IActivityRepository activityRepository, DefaultActivityChainFactory defaultActivityChainFactory) {
++        super(activityRepository, defaultActivityChainFactory);
+     }
+ 
+     @Override
+-    public ActivityOrderEntity createRaffleActivityOrder(ActivityShopCartEntity activityShopCartEntity) {
+-        // 1. 通过sku查询活动信息
+-        ActivitySkuEntity activitySkuEntity = activityRepository.queryActivitySku(activityShopCartEntity.getSku());
+-        // 2. 查询活动信息
+-        ActivityEntity activityEntity = activityRepository.queryRaffleActivityByActivityId(activitySkuEntity.getActivityId());
+-        // 3. 查询次数信息（用户在活动上可参与的次数）
+-        ActivityCountEntity activityCountEntity = activityRepository.queryRaffleActivityCountByActivityCountId(activitySkuEntity.getActivityCountId());
++    public String createSkuRechargeOrder(SkuRechargeEntity skuRechargeEntity) {
++        // 1. 参数校验
++        String userId = skuRechargeEntity.getUserId();
++        Long sku = skuRechargeEntity.getSku();
++        String outBusinessNo = skuRechargeEntity.getOutBusinessNo();
++        if (null == sku || StringUtils.isBlank(userId) || StringUtils.isBlank(outBusinessNo)) {
++            throw new AppException(ResponseCode.ILLEGAL_PARAMETER.getCode(), ResponseCode.ILLEGAL_PARAMETER.getInfo());
++        }
++
++        // 2. 查询基础信息
++        // 2.1 通过sku查询活动信息
++        ActivitySkuEntity activitySkuEntity = queryActivitySku(sku);
++        // 2.2 查询活动信息
++        ActivityEntity activityEntity = queryRaffleActivityByActivityId(activitySkuEntity.getActivityId());
++        // 2.3 查询次数信息（用户在活动上可参与的次数）
++        ActivityCountEntity activityCountEntity = queryRaffleActivityCountByActivityCountId(activitySkuEntity.getActivityCountId());
++
++        // 3. 活动动作规则校验 todo 后续处理规则过滤流程，暂时也不处理责任链结果
++        IActionChain actionChain = defaultActivityChainFactory.openActionChain();
++        boolean success = actionChain.action(activitySkuEntity, activityEntity, activityCountEntity);
++
++        // 4. 构建订单聚合对象
++        CreateOrderAggregate createOrderAggregate = buildOrderAggregate(skuRechargeEntity, activitySkuEntity, activityEntity, activityCountEntity);
++
++        // 5. 保存订单
++        doSaveOrder(createOrderAggregate);
++
++        // 6. 返回单号
++        return createOrderAggregate.getActivityOrderEntity().getOrderId();
++    }
+ 
+-        log.info("查询结果：{} {} {}", JSON.toJSONString(activitySkuEntity), JSON.toJSONString(activityEntity), JSON.toJSONString(activityCountEntity));
++    protected abstract CreateOrderAggregate buildOrderAggregate(SkuRechargeEntity skuRechargeEntity, ActivitySkuEntity activitySkuEntity, ActivityEntity activityEntity, ActivityCountEntity activityCountEntity);
+ 
+-        return ActivityOrderEntity.builder().build();
+-    }
++    protected abstract void doSaveOrder(CreateOrderAggregate createOrderAggregate);
+ 
+ }
+diff --git a/big-market-domain/src/main/java/cn/bugstack/domain/activity/service/IRaffleOrder.java b/big-market-domain/src/main/java/cn/bugstack/domain/activity/service/IRaffleOrder.java
+index be12ad8..bb582d3 100644
+--- a/big-market-domain/src/main/java/cn/bugstack/domain/activity/service/IRaffleOrder.java
++++ b/big-market-domain/src/main/java/cn/bugstack/domain/activity/service/IRaffleOrder.java
+@@ -1,7 +1,6 @@
+ package cn.bugstack.domain.activity.service;
+ 
+-import cn.bugstack.domain.activity.model.entity.ActivityOrderEntity;
+-import cn.bugstack.domain.activity.model.entity.ActivityShopCartEntity;
++import cn.bugstack.domain.activity.model.entity.SkuRechargeEntity;
+ 
+ /**
+  * @author Fuzhengwei bugstack.cn @小傅哥
+@@ -11,11 +10,14 @@ import cn.bugstack.domain.activity.model.entity.ActivityShopCartEntity;
+ public interface IRaffleOrder {
+ 
+     /**
+-     * 以sku创建抽奖活动订单，获得参与抽奖资格（可消耗的次数）
++     * 创建 sku 账户充值订单，给用户增加抽奖次数
++     * <p>
++     * 1. 在【打卡、签到、分享、对话、积分兑换】等行为动作下，创建出活动订单，给用户的活动账户【日、月】充值可用的抽奖次数。
++     * 2. 对于用户可获得的抽奖次数，比如首次进来就有一次，则是依赖于运营配置的动作，在前端页面上。用户点击后，可以获得一次抽奖次数。
+      *
+-     * @param activityShopCartEntity 活动sku实体，通过sku领取活动。
+-     * @return 活动参与记录实体
++     * @param skuRechargeEntity 活动商品充值实体对象
++     * @return 活动ID
+      */
+-    ActivityOrderEntity createRaffleActivityOrder(ActivityShopCartEntity activityShopCartEntity);
++    String createSkuRechargeOrder(SkuRechargeEntity skuRechargeEntity);
+ 
+ }
+diff --git a/big-market-domain/src/main/java/cn/bugstack/domain/activity/service/RaffleActivityService.java b/big-market-domain/src/main/java/cn/bugstack/domain/activity/service/RaffleActivityService.java
+index 87c393e..dbd6f7f 100644
+--- a/big-market-domain/src/main/java/cn/bugstack/domain/activity/service/RaffleActivityService.java
++++ b/big-market-domain/src/main/java/cn/bugstack/domain/activity/service/RaffleActivityService.java
+@@ -1,8 +1,15 @@
+ package cn.bugstack.domain.activity.service;
+ 
++import cn.bugstack.domain.activity.model.aggregate.CreateOrderAggregate;
++import cn.bugstack.domain.activity.model.entity.*;
++import cn.bugstack.domain.activity.model.valobj.OrderStateVO;
+ import cn.bugstack.domain.activity.repository.IActivityRepository;
++import cn.bugstack.domain.activity.service.rule.factory.DefaultActivityChainFactory;
++import org.apache.commons.lang3.RandomStringUtils;
+ import org.springframework.stereotype.Service;
+ 
++import java.util.Date;
++
+ /**
+  * @author Fuzhengwei bugstack.cn @小傅哥
+  * @description 抽奖活动服务
+@@ -11,8 +18,42 @@ import org.springframework.stereotype.Service;
+ @Service
+ public class RaffleActivityService extends AbstractRaffleActivity {
+ 
+-    public RaffleActivityService(IActivityRepository activityRepository) {
+-        super(activityRepository);
++    public RaffleActivityService(IActivityRepository activityRepository, DefaultActivityChainFactory defaultActivityChainFactory) {
++        super(activityRepository, defaultActivityChainFactory);
++    }
++
++    @Override
++    protected CreateOrderAggregate buildOrderAggregate(SkuRechargeEntity skuRechargeEntity, ActivitySkuEntity activitySkuEntity, ActivityEntity activityEntity, ActivityCountEntity activityCountEntity) {
++        // 订单实体对象
++        ActivityOrderEntity activityOrderEntity = new ActivityOrderEntity();
++        activityOrderEntity.setUserId(skuRechargeEntity.getUserId());
++        activityOrderEntity.setSku(skuRechargeEntity.getSku());
++        activityOrderEntity.setActivityId(activityEntity.getActivityId());
++        activityOrderEntity.setActivityName(activityEntity.getActivityName());
++        activityOrderEntity.setStrategyId(activityEntity.getStrategyId());
++        // 公司里一般会有专门的雪花算法UUID服务，我们这里直接生成个12位就可以了。
++        activityOrderEntity.setOrderId(RandomStringUtils.randomNumeric(12));
++        activityOrderEntity.setOrderTime(new Date());
++        activityOrderEntity.setTotalCount(activityCountEntity.getTotalCount());
++        activityOrderEntity.setDayCount(activityCountEntity.getDayCount());
++        activityOrderEntity.setMonthCount(activityCountEntity.getMonthCount());
++        activityOrderEntity.setState(OrderStateVO.completed);
++        activityOrderEntity.setOutBusinessNo(skuRechargeEntity.getOutBusinessNo());
++
++        // 构建聚合对象
++        return CreateOrderAggregate.builder()
++                .userId(skuRechargeEntity.getUserId())
++                .activityId(activitySkuEntity.getActivityId())
++                .totalCount(activityCountEntity.getTotalCount())
++                .dayCount(activityCountEntity.getDayCount())
++                .monthCount(activityCountEntity.getMonthCount())
++                .activityOrderEntity(activityOrderEntity)
++                .build();
++    }
++
++    @Override
++    protected void doSaveOrder(CreateOrderAggregate createOrderAggregate) {
++        activityRepository.doSaveOrder(createOrderAggregate);
+     }
+ 
+ }
+diff --git a/big-market-domain/src/main/java/cn/bugstack/domain/activity/service/RaffleActivitySupport.java b/big-market-domain/src/main/java/cn/bugstack/domain/activity/service/RaffleActivitySupport.java
+new file mode 100644
+index 0000000..41ea8ed
+--- /dev/null
++++ b/big-market-domain/src/main/java/cn/bugstack/domain/activity/service/RaffleActivitySupport.java
+@@ -0,0 +1,37 @@
++package cn.bugstack.domain.activity.service;
++
++import cn.bugstack.domain.activity.model.entity.ActivityCountEntity;
++import cn.bugstack.domain.activity.model.entity.ActivityEntity;
++import cn.bugstack.domain.activity.model.entity.ActivitySkuEntity;
++import cn.bugstack.domain.activity.repository.IActivityRepository;
++import cn.bugstack.domain.activity.service.rule.factory.DefaultActivityChainFactory;
++
++/**
++ * @author Fuzhengwei bugstack.cn @小傅哥
++ * @description 抽奖活动的支撑类
++ * @create 2024-03-23 09:27
++ */
++public class RaffleActivitySupport {
++
++    protected DefaultActivityChainFactory defaultActivityChainFactory;
++
++    protected IActivityRepository activityRepository;
++
++    public RaffleActivitySupport(IActivityRepository activityRepository, DefaultActivityChainFactory defaultActivityChainFactory) {
++        this.activityRepository = activityRepository;
++        this.defaultActivityChainFactory = defaultActivityChainFactory;
++    }
++
++    public ActivitySkuEntity queryActivitySku(Long sku) {
++        return activityRepository.queryActivitySku(sku);
++    }
++
++    public ActivityEntity queryRaffleActivityByActivityId(Long activityId) {
++        return activityRepository.queryRaffleActivityByActivityId(activityId);
++    }
++
++    public ActivityCountEntity queryRaffleActivityCountByActivityCountId(Long activityCountId) {
++        return activityRepository.queryRaffleActivityCountByActivityCountId(activityCountId);
++    }
++
++}
+diff --git a/big-market-domain/src/main/java/cn/bugstack/domain/activity/service/rule/AbstractActionChain.java b/big-market-domain/src/main/java/cn/bugstack/domain/activity/service/rule/AbstractActionChain.java
+new file mode 100644
+index 0000000..e42ba0f
+--- /dev/null
++++ b/big-market-domain/src/main/java/cn/bugstack/domain/activity/service/rule/AbstractActionChain.java
+@@ -0,0 +1,23 @@
++package cn.bugstack.domain.activity.service.rule;
++
++/**
++ * @author Fuzhengwei bugstack.cn @小傅哥
++ * @description 下单规则责任链抽象类
++ * @create 2024-03-23 10:16
++ */
++public abstract class AbstractActionChain implements IActionChain {
++
++    private IActionChain next;
++
++    @Override
++    public IActionChain next() {
++        return next;
++    }
++
++    @Override
++    public IActionChain appendNext(IActionChain next) {
++        this.next = next;
++        return next;
++    }
++
++}
+diff --git a/big-market-domain/src/main/java/cn/bugstack/domain/activity/service/rule/IActionChain.java b/big-market-domain/src/main/java/cn/bugstack/domain/activity/service/rule/IActionChain.java
+new file mode 100644
+index 0000000..e5c8878
+--- /dev/null
++++ b/big-market-domain/src/main/java/cn/bugstack/domain/activity/service/rule/IActionChain.java
+@@ -0,0 +1,16 @@
++package cn.bugstack.domain.activity.service.rule;
++
++import cn.bugstack.domain.activity.model.entity.ActivityCountEntity;
++import cn.bugstack.domain.activity.model.entity.ActivityEntity;
++import cn.bugstack.domain.activity.model.entity.ActivitySkuEntity;
++
++/**
++ * @author Fuzhengwei bugstack.cn @小傅哥
++ * @description 下单规则过滤接口
++ * @create 2024-03-23 09:40
++ */
++public interface IActionChain extends IActionChainArmory {
++
++    boolean action(ActivitySkuEntity activitySkuEntity, ActivityEntity activityEntity, ActivityCountEntity activityCountEntity);
++
++}
+diff --git a/big-market-domain/src/main/java/cn/bugstack/domain/activity/service/rule/IActionChainArmory.java b/big-market-domain/src/main/java/cn/bugstack/domain/activity/service/rule/IActionChainArmory.java
+new file mode 100644
+index 0000000..59b964f
+--- /dev/null
++++ b/big-market-domain/src/main/java/cn/bugstack/domain/activity/service/rule/IActionChainArmory.java
+@@ -0,0 +1,14 @@
++package cn.bugstack.domain.activity.service.rule;
++
++/**
++ * @author Fuzhengwei bugstack.cn @小傅哥
++ * @description
++ * @create 2024-03-23 10:15
++ */
++public interface IActionChainArmory {
++
++    IActionChain next();
++
++    IActionChain appendNext(IActionChain next);
++
++}
+diff --git a/big-market-domain/src/main/java/cn/bugstack/domain/activity/service/rule/factory/DefaultActivityChainFactory.java b/big-market-domain/src/main/java/cn/bugstack/domain/activity/service/rule/factory/DefaultActivityChainFactory.java
+new file mode 100644
+index 0000000..32bee0a
+--- /dev/null
++++ b/big-market-domain/src/main/java/cn/bugstack/domain/activity/service/rule/factory/DefaultActivityChainFactory.java
+@@ -0,0 +1,47 @@
++package cn.bugstack.domain.activity.service.rule.factory;
++
++import cn.bugstack.domain.activity.service.rule.IActionChain;
++import lombok.AllArgsConstructor;
++import lombok.Getter;
++import org.springframework.stereotype.Service;
++
++import java.util.Map;
++
++/**
++ * @author Fuzhengwei bugstack.cn @小傅哥
++ * @description 责任链工厂
++ * @create 2024-03-23 10:30
++ */
++@Service
++public class DefaultActivityChainFactory {
++
++    private final IActionChain actionChain;
++
++    /**
++     * 1. 通过构造函数注入。
++     * 2. Spring 可以自动注入 IActionChain 接口实现类到 map 对象中，key 就是 bean 的名字。
++     * 3. 活动下单动作的责任链是固定的，所以直接在构造函数中组装即可。
++     */
++    public DefaultActivityChainFactory(Map<String, IActionChain> actionChainGroup) {
++        actionChain = actionChainGroup.get(ActionModel.activity_base_action.code);
++        actionChain.appendNext(actionChainGroup.get(ActionModel.activity_sku_stock_action.getCode()));
++    }
++
++    public IActionChain openActionChain() {
++        return this.actionChain;
++    }
++
++    @Getter
++    @AllArgsConstructor
++    public enum ActionModel {
++
++        activity_base_action("activity_base_action", "活动的库存、时间校验"),
++        activity_sku_stock_action("activity_sku_stock_action", "活动sku库存"),
++        ;
++
++        private final String code;
++        private final String info;
++
++    }
++
++}
+diff --git a/big-market-domain/src/main/java/cn/bugstack/domain/activity/service/rule/impl/ActivityBaseActionChain.java b/big-market-domain/src/main/java/cn/bugstack/domain/activity/service/rule/impl/ActivityBaseActionChain.java
+new file mode 100644
+index 0000000..48a9a65
+--- /dev/null
++++ b/big-market-domain/src/main/java/cn/bugstack/domain/activity/service/rule/impl/ActivityBaseActionChain.java
+@@ -0,0 +1,27 @@
++package cn.bugstack.domain.activity.service.rule.impl;
++
++import cn.bugstack.domain.activity.model.entity.ActivityCountEntity;
++import cn.bugstack.domain.activity.model.entity.ActivityEntity;
++import cn.bugstack.domain.activity.model.entity.ActivitySkuEntity;
++import cn.bugstack.domain.activity.service.rule.AbstractActionChain;
++import lombok.extern.slf4j.Slf4j;
++import org.springframework.stereotype.Component;
++
++/**
++ * @author Fuzhengwei bugstack.cn @小傅哥
++ * @description 活动规则过滤【日期、状态】
++ * @create 2024-03-23 10:23
++ */
++@Slf4j
++@Component("activity_base_action")
++public class ActivityBaseActionChain extends AbstractActionChain {
++
++    @Override
++    public boolean action(ActivitySkuEntity activitySkuEntity, ActivityEntity activityEntity, ActivityCountEntity activityCountEntity) {
++
++        log.info("活动责任链-基础信息【有效期、状态】校验开始。");
++
++        return next().action(activitySkuEntity, activityEntity, activityCountEntity);
++    }
++
++}
+diff --git a/big-market-domain/src/main/java/cn/bugstack/domain/activity/service/rule/impl/ActivitySkuStockActionChain.java b/big-market-domain/src/main/java/cn/bugstack/domain/activity/service/rule/impl/ActivitySkuStockActionChain.java
+new file mode 100644
+index 0000000..b5298ff
+--- /dev/null
++++ b/big-market-domain/src/main/java/cn/bugstack/domain/activity/service/rule/impl/ActivitySkuStockActionChain.java
+@@ -0,0 +1,26 @@
++package cn.bugstack.domain.activity.service.rule.impl;
++
++import cn.bugstack.domain.activity.model.entity.ActivityCountEntity;
++import cn.bugstack.domain.activity.model.entity.ActivityEntity;
++import cn.bugstack.domain.activity.model.entity.ActivitySkuEntity;
++import cn.bugstack.domain.activity.service.rule.AbstractActionChain;
++import lombok.extern.slf4j.Slf4j;
++import org.springframework.stereotype.Component;
++
++/**
++ * @author Fuzhengwei bugstack.cn @小傅哥
++ * @description 商品库存规则节点
++ * @create 2024-03-23 10:25
++ */
++@Slf4j
++@Component("activity_sku_stock_action")
++public class ActivitySkuStockActionChain extends AbstractActionChain {
++
++    @Override
++    public boolean action(ActivitySkuEntity activitySkuEntity, ActivityEntity activityEntity, ActivityCountEntity activityCountEntity) {
++        log.info("活动责任链-商品库存处理【校验&扣减】开始。");
++
++        return true;
++    }
++
++}
+diff --git a/big-market-infrastructure/src/main/java/cn/bugstack/infrastructure/persistent/dao/IRaffleActivityAccountDao.java b/big-market-infrastructure/src/main/java/cn/bugstack/infrastructure/persistent/dao/IRaffleActivityAccountDao.java
+index a1c0e5c..61c8f17 100644
+--- a/big-market-infrastructure/src/main/java/cn/bugstack/infrastructure/persistent/dao/IRaffleActivityAccountDao.java
++++ b/big-market-infrastructure/src/main/java/cn/bugstack/infrastructure/persistent/dao/IRaffleActivityAccountDao.java
+@@ -1,5 +1,6 @@
+ package cn.bugstack.infrastructure.persistent.dao;
+ 
++import cn.bugstack.infrastructure.persistent.po.RaffleActivityAccount;
+ import org.apache.ibatis.annotations.Mapper;
+ 
+ /**
+@@ -9,4 +10,9 @@ import org.apache.ibatis.annotations.Mapper;
+  */
+ @Mapper
+ public interface IRaffleActivityAccountDao {
++
++    void insert(RaffleActivityAccount raffleActivityAccount);
++
++    int updateAccountQuota(RaffleActivityAccount raffleActivityAccount);
++
+ }
+diff --git a/big-market-infrastructure/src/main/java/cn/bugstack/infrastructure/persistent/po/RaffleActivityOrder.java b/big-market-infrastructure/src/main/java/cn/bugstack/infrastructure/persistent/po/RaffleActivityOrder.java
+index 93f2770..9bfa6b5 100644
+--- a/big-market-infrastructure/src/main/java/cn/bugstack/infrastructure/persistent/po/RaffleActivityOrder.java
++++ b/big-market-infrastructure/src/main/java/cn/bugstack/infrastructure/persistent/po/RaffleActivityOrder.java
+@@ -22,6 +22,11 @@ public class RaffleActivityOrder {
+      */
+     private String userId;
+ 
++    /**
++     * sku
++     */
++    private Long sku;
++
+     /**
+      * 活动ID
+      */
+@@ -67,6 +72,11 @@ public class RaffleActivityOrder {
+      */
+     private String state;
+ 
++    /**
++     * 业务仿重ID - 外部透传的，确保幂等
++     */
++    private String outBusinessNo;
++
+     /**
+      * 创建时间
+      */
+diff --git a/big-market-infrastructure/src/main/java/cn/bugstack/infrastructure/persistent/repository/ActivityRepository.java b/big-market-infrastructure/src/main/java/cn/bugstack/infrastructure/persistent/repository/ActivityRepository.java
+index cd7da86..85dad36 100644
+--- a/big-market-infrastructure/src/main/java/cn/bugstack/infrastructure/persistent/repository/ActivityRepository.java
++++ b/big-market-infrastructure/src/main/java/cn/bugstack/infrastructure/persistent/repository/ActivityRepository.java
+@@ -1,19 +1,23 @@
+ package cn.bugstack.infrastructure.persistent.repository;
+ 
++import cn.bugstack.domain.activity.model.aggregate.CreateOrderAggregate;
+ import cn.bugstack.domain.activity.model.entity.ActivityCountEntity;
+ import cn.bugstack.domain.activity.model.entity.ActivityEntity;
++import cn.bugstack.domain.activity.model.entity.ActivityOrderEntity;
+ import cn.bugstack.domain.activity.model.entity.ActivitySkuEntity;
+ import cn.bugstack.domain.activity.model.valobj.ActivityStateVO;
+ import cn.bugstack.domain.activity.repository.IActivityRepository;
+-import cn.bugstack.infrastructure.persistent.dao.IRaffleActivityCountDao;
+-import cn.bugstack.infrastructure.persistent.dao.IRaffleActivityDao;
+-import cn.bugstack.infrastructure.persistent.dao.IRaffleActivitySkuDao;
+-import cn.bugstack.infrastructure.persistent.po.RaffleActivity;
+-import cn.bugstack.infrastructure.persistent.po.RaffleActivityCount;
+-import cn.bugstack.infrastructure.persistent.po.RaffleActivitySku;
++import cn.bugstack.infrastructure.persistent.dao.*;
++import cn.bugstack.infrastructure.persistent.po.*;
+ import cn.bugstack.infrastructure.persistent.redis.IRedisService;
++import cn.bugstack.middleware.db.router.strategy.IDBRouterStrategy;
+ import cn.bugstack.types.common.Constants;
++import cn.bugstack.types.enums.ResponseCode;
++import cn.bugstack.types.exception.AppException;
++import lombok.extern.slf4j.Slf4j;
++import org.springframework.dao.DuplicateKeyException;
+ import org.springframework.stereotype.Repository;
++import org.springframework.transaction.support.TransactionTemplate;
+ 
+ import javax.annotation.Resource;
+ 
+@@ -22,6 +26,7 @@ import javax.annotation.Resource;
+  * @description 活动仓储服务
+  * @create 2024-03-16 11:03
+  */
++@Slf4j
+ @Repository
+ public class ActivityRepository implements IActivityRepository {
+ 
+@@ -33,6 +38,14 @@ public class ActivityRepository implements IActivityRepository {
+     private IRaffleActivitySkuDao raffleActivitySkuDao;
+     @Resource
+     private IRaffleActivityCountDao raffleActivityCountDao;
++    @Resource
++    private IRaffleActivityOrderDao raffleActivityOrderDao;
++    @Resource
++    private IRaffleActivityAccountDao raffleActivityAccountDao;
++    @Resource
++    private TransactionTemplate transactionTemplate;
++    @Resource
++    private IDBRouterStrategy dbRouter;
+ 
+     @Override
+     public ActivitySkuEntity queryActivitySku(Long sku) {
+@@ -85,4 +98,62 @@ public class ActivityRepository implements IActivityRepository {
+         return activityCountEntity;
+     }
+ 
++    @Override
++    public void doSaveOrder(CreateOrderAggregate createOrderAggregate) {
++        try {
++            // 订单对象
++            ActivityOrderEntity activityOrderEntity = createOrderAggregate.getActivityOrderEntity();
++            RaffleActivityOrder raffleActivityOrder = new RaffleActivityOrder();
++            raffleActivityOrder.setUserId(activityOrderEntity.getUserId());
++            raffleActivityOrder.setSku(activityOrderEntity.getSku());
++            raffleActivityOrder.setActivityId(activityOrderEntity.getActivityId());
++            raffleActivityOrder.setActivityName(activityOrderEntity.getActivityName());
++            raffleActivityOrder.setStrategyId(activityOrderEntity.getStrategyId());
++            raffleActivityOrder.setOrderId(activityOrderEntity.getOrderId());
++            raffleActivityOrder.setOrderTime(activityOrderEntity.getOrderTime());
++            raffleActivityOrder.setTotalCount(activityOrderEntity.getTotalCount());
++            raffleActivityOrder.setDayCount(activityOrderEntity.getDayCount());
++            raffleActivityOrder.setMonthCount(activityOrderEntity.getMonthCount());
++            raffleActivityOrder.setTotalCount(createOrderAggregate.getTotalCount());
++            raffleActivityOrder.setDayCount(createOrderAggregate.getDayCount());
++            raffleActivityOrder.setMonthCount(createOrderAggregate.getMonthCount());
++            raffleActivityOrder.setState(activityOrderEntity.getState().getCode());
++            raffleActivityOrder.setOutBusinessNo(activityOrderEntity.getOutBusinessNo());
++
++            // 账户对象
++            RaffleActivityAccount raffleActivityAccount = new RaffleActivityAccount();
++            raffleActivityAccount.setUserId(createOrderAggregate.getUserId());
++            raffleActivityAccount.setActivityId(createOrderAggregate.getActivityId());
++            raffleActivityAccount.setTotalCount(createOrderAggregate.getTotalCount());
++            raffleActivityAccount.setTotalCountSurplus(createOrderAggregate.getTotalCount());
++            raffleActivityAccount.setDayCount(createOrderAggregate.getDayCount());
++            raffleActivityAccount.setDayCountSurplus(createOrderAggregate.getDayCount());
++            raffleActivityAccount.setMonthCount(createOrderAggregate.getMonthCount());
++            raffleActivityAccount.setMonthCountSurplus(createOrderAggregate.getMonthCount());
++
++            // 以用户ID作为切分键，通过 doRouter 设定路由【这样就保证了下面的操作，都是同一个链接下，也就保证了事务的特性】
++            dbRouter.doRouter(createOrderAggregate.getUserId());
++            // 编程式事务
++            transactionTemplate.execute(status -> {
++                try {
++                    // 1. 写入订单
++                    raffleActivityOrderDao.insert(raffleActivityOrder);
++                    // 2. 更新账户
++                    int count = raffleActivityAccountDao.updateAccountQuota(raffleActivityAccount);
++                    // 3. 创建账户 - 更新为0，则账户不存在，创新新账户。
++                    if (0 == count) {
++                        raffleActivityAccountDao.insert(raffleActivityAccount);
++                    }
++                    return 1;
++                } catch (DuplicateKeyException e) {
++                    status.setRollbackOnly();
++                    log.error("写入订单记录，唯一索引冲突 userId: {} activityId: {} sku: {}", activityOrderEntity.getUserId(), activityOrderEntity.getActivityId(), activityOrderEntity.getSku(), e);
++                    throw new AppException(ResponseCode.INDEX_DUP.getCode());
++                }
++            });
++        } finally {
++            dbRouter.clear();
++        }
++    }
++
+ }
+diff --git a/big-market-types/src/main/java/cn/bugstack/types/enums/ResponseCode.java b/big-market-types/src/main/java/cn/bugstack/types/enums/ResponseCode.java
+index effeef6..0baf78a 100644
+--- a/big-market-types/src/main/java/cn/bugstack/types/enums/ResponseCode.java
++++ b/big-market-types/src/main/java/cn/bugstack/types/enums/ResponseCode.java
+@@ -12,6 +12,7 @@ public enum ResponseCode {
+     SUCCESS("0000", "调用成功"),
+     UN_ERROR("0001", "调用失败"),
+     ILLEGAL_PARAMETER("0002", "非法参数"),
++    INDEX_DUP("0003", "唯一索引冲突"),
+     STRATEGY_RULE_WEIGHT_IS_NULL("ERR_BIZ_001", "业务异常，策略规则中 rule_weight 权重规则已适用但未配置"),
+     UN_ASSEMBLED_STRATEGY_ARMORY("ERR_BIZ_002", "抽奖策略配置未装配，请通过IStrategyArmory完成装配"),
+     ;
+diff --git a/docs/dev-ops/mysql/sql/big_market.sql b/docs/dev-ops/mysql/sql/big_market.sql
+index 09dea86..b1042a1 100644
+--- a/docs/dev-ops/mysql/sql/big_market.sql
++++ b/docs/dev-ops/mysql/sql/big_market.sql
+@@ -7,7 +7,7 @@
+ #
+ # 主机: 127.0.0.1 (MySQL 5.6.39)
+ # 数据库: big_market
+-# 生成时间: 2024-03-16 07:12:54 +0000
++# 生成时间: 2024-03-23 07:34:07 +0000
+ # ************************************************************
+ 
+ 
+diff --git a/docs/dev-ops/mysql/sql/big_market_01.sql b/docs/dev-ops/mysql/sql/big_market_01.sql
+index bd36d0d..769c9e3 100644
+--- a/docs/dev-ops/mysql/sql/big_market_01.sql
++++ b/docs/dev-ops/mysql/sql/big_market_01.sql
+@@ -7,7 +7,7 @@
+ #
+ # 主机: 127.0.0.1 (MySQL 5.6.39)
+ # 数据库: big_market_01
+-# 生成时间: 2024-03-16 07:12:34 +0000
++# 生成时间: 2024-03-23 07:33:41 +0000
+ # ************************************************************
+ 
+ 
+@@ -43,6 +43,15 @@ CREATE TABLE `raffle_activity_account` (
+   UNIQUE KEY `uq_user_id_activity_id` (`user_id`,`activity_id`)
+ ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='抽奖活动账户表';
+ 
++LOCK TABLES `raffle_activity_account` WRITE;
++/*!40000 ALTER TABLE `raffle_activity_account` DISABLE KEYS */;
++
++INSERT INTO `raffle_activity_account` (`id`, `user_id`, `activity_id`, `total_count`, `total_count_surplus`, `day_count`, `day_count_surplus`, `month_count`, `month_count_surplus`, `create_time`, `update_time`)
++VALUES
++	(2,'xiaofuge',100301,4,3,4,3,4,3,'2024-03-23 12:40:56','2024-03-23 13:16:40');
++
++/*!40000 ALTER TABLE `raffle_activity_account` ENABLE KEYS */;
++UNLOCK TABLES;
+ 
+ 
+ # 转储表 raffle_activity_order_000
+@@ -62,24 +71,16 @@ CREATE TABLE `raffle_activity_order_000` (
+   `total_count` int(8) NOT NULL COMMENT '总次数',
+   `day_count` int(8) NOT NULL COMMENT '日次数',
+   `month_count` int(8) NOT NULL COMMENT '月次数',
+-  `state` varchar(8) NOT NULL DEFAULT 'complete' COMMENT '订单状态（complete）',
++  `state` varchar(16) NOT NULL DEFAULT 'complete' COMMENT '订单状态（complete）',
++  `out_business_no` varchar(64) NOT NULL COMMENT '业务仿重ID - 外部透传的，确保幂等',
+   `create_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+   `update_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '更新时间',
+   PRIMARY KEY (`id`),
+   UNIQUE KEY `uq_order_id` (`order_id`),
++  UNIQUE KEY `uq_out_business_no` (`out_business_no`),
+   KEY `idx_user_id_activity_id` (`user_id`,`activity_id`,`state`)
+ ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='抽奖活动单';
+ 
+-LOCK TABLES `raffle_activity_order_000` WRITE;
+-/*!40000 ALTER TABLE `raffle_activity_order_000` DISABLE KEYS */;
+-
+-INSERT INTO `raffle_activity_order_000` (`id`, `user_id`, `sku`, `activity_id`, `activity_name`, `strategy_id`, `order_id`, `order_time`, `total_count`, `day_count`, `month_count`, `state`, `create_time`, `update_time`)
+-VALUES
+-	(1,'ODRhfGEfX',0,100301,'测试活动',100006,'826130522615','2024-03-09 06:26:20',0,0,0,'not_used','2024-03-09 14:26:19','2024-03-09 14:26:19'),
+-	(2,'IoTtOmcBeivNUYv',0,100301,'测试活动',100006,'469450480489','2024-03-09 06:26:20',0,0,0,'not_used','2024-03-09 14:26:20','2024-03-09 14:26:20');
+-
+-/*!40000 ALTER TABLE `raffle_activity_order_000` ENABLE KEYS */;
+-UNLOCK TABLES;
+ 
+ 
+ # 转储表 raffle_activity_order_001
+@@ -99,14 +100,25 @@ CREATE TABLE `raffle_activity_order_001` (
+   `total_count` int(8) NOT NULL COMMENT '总次数',
+   `day_count` int(8) NOT NULL COMMENT '日次数',
+   `month_count` int(8) NOT NULL COMMENT '月次数',
+-  `state` varchar(8) NOT NULL DEFAULT 'complete' COMMENT '订单状态（complete）',
++  `state` varchar(16) NOT NULL DEFAULT 'complete' COMMENT '订单状态（complete）',
++  `out_business_no` varchar(64) NOT NULL COMMENT '业务仿重ID - 外部透传的，确保幂等',
+   `create_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+   `update_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '更新时间',
+   PRIMARY KEY (`id`),
+   UNIQUE KEY `uq_order_id` (`order_id`),
++  UNIQUE KEY `uq_out_business_no` (`out_business_no`),
+   KEY `idx_user_id_activity_id` (`user_id`,`activity_id`,`state`)
+ ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='抽奖活动单';
+ 
++LOCK TABLES `raffle_activity_order_001` WRITE;
++/*!40000 ALTER TABLE `raffle_activity_order_001` DISABLE KEYS */;
++
++INSERT INTO `raffle_activity_order_001` (`id`, `user_id`, `sku`, `activity_id`, `activity_name`, `strategy_id`, `order_id`, `order_time`, `total_count`, `day_count`, `month_count`, `state`, `out_business_no`, `create_time`, `update_time`)
++VALUES
++	(3,'xiaofuge',9011,100301,'测试活动',100006,'383240888158','2024-03-23 04:38:23',1,1,1,'completed','700091009111','2024-03-23 12:38:23','2024-03-23 12:38:23');
++
++/*!40000 ALTER TABLE `raffle_activity_order_001` ENABLE KEYS */;
++UNLOCK TABLES;
+ 
+ 
+ # 转储表 raffle_activity_order_002
+@@ -126,11 +138,13 @@ CREATE TABLE `raffle_activity_order_002` (
+   `total_count` int(8) NOT NULL COMMENT '总次数',
+   `day_count` int(8) NOT NULL COMMENT '日次数',
+   `month_count` int(8) NOT NULL COMMENT '月次数',
+-  `state` varchar(8) NOT NULL DEFAULT 'complete' COMMENT '订单状态（complete）',
++  `state` varchar(16) NOT NULL DEFAULT 'complete' COMMENT '订单状态（complete）',
++  `out_business_no` varchar(64) NOT NULL COMMENT '业务仿重ID - 外部透传的，确保幂等',
+   `create_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+   `update_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '更新时间',
+   PRIMARY KEY (`id`),
+   UNIQUE KEY `uq_order_id` (`order_id`),
++  UNIQUE KEY `uq_out_business_no` (`out_business_no`),
+   KEY `idx_user_id_activity_id` (`user_id`,`activity_id`,`state`)
+ ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='抽奖活动单';
+ 
+@@ -153,11 +167,13 @@ CREATE TABLE `raffle_activity_order_003` (
+   `total_count` int(8) NOT NULL COMMENT '总次数',
+   `day_count` int(8) NOT NULL COMMENT '日次数',
+   `month_count` int(8) NOT NULL COMMENT '月次数',
+-  `state` varchar(8) NOT NULL DEFAULT 'complete' COMMENT '订单状态（complete）',
++  `state` varchar(16) NOT NULL DEFAULT 'complete' COMMENT '订单状态（complete）',
++  `out_business_no` varchar(64) NOT NULL COMMENT '业务仿重ID - 外部透传的，确保幂等',
+   `create_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+   `update_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '更新时间',
+   PRIMARY KEY (`id`),
+   UNIQUE KEY `uq_order_id` (`order_id`),
++  UNIQUE KEY `uq_out_business_no` (`out_business_no`),
+   KEY `idx_user_id_activity_id` (`user_id`,`activity_id`,`state`)
+ ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='抽奖活动单';
+ 
+diff --git a/docs/dev-ops/mysql/sql/big_market_02.sql b/docs/dev-ops/mysql/sql/big_market_02.sql
+index 63e37c7..540bf31 100644
+--- a/docs/dev-ops/mysql/sql/big_market_02.sql
++++ b/docs/dev-ops/mysql/sql/big_market_02.sql
+@@ -7,7 +7,7 @@
+ #
+ # 主机: 127.0.0.1 (MySQL 5.6.39)
+ # 数据库: big_market_02
+-# 生成时间: 2024-03-16 07:12:43 +0000
++# 生成时间: 2024-03-23 07:33:49 +0000
+ # ************************************************************
+ 
+ 
+@@ -43,6 +43,15 @@ CREATE TABLE `raffle_activity_account` (
+   UNIQUE KEY `uq_user_id_activity_id` (`user_id`,`activity_id`)
+ ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='抽奖活动账户表';
+ 
++LOCK TABLES `raffle_activity_account` WRITE;
++/*!40000 ALTER TABLE `raffle_activity_account` DISABLE KEYS */;
++
++INSERT INTO `raffle_activity_account` (`id`, `user_id`, `activity_id`, `total_count`, `total_count_surplus`, `day_count`, `day_count_surplus`, `month_count`, `month_count_surplus`, `create_time`, `update_time`)
++VALUES
++	(2,'xiaofuge',100301,4,3,4,3,4,3,'2024-03-23 12:40:56','2024-03-23 13:16:40');
++
++/*!40000 ALTER TABLE `raffle_activity_account` ENABLE KEYS */;
++UNLOCK TABLES;
+ 
+ 
+ # 转储表 raffle_activity_order_000
+@@ -62,11 +71,13 @@ CREATE TABLE `raffle_activity_order_000` (
+   `total_count` int(8) NOT NULL COMMENT '总次数',
+   `day_count` int(8) NOT NULL COMMENT '日次数',
+   `month_count` int(8) NOT NULL COMMENT '月次数',
+-  `state` varchar(8) NOT NULL DEFAULT 'complete' COMMENT '订单状态（complete）',
++  `state` varchar(16) NOT NULL DEFAULT 'complete' COMMENT '订单状态（complete）',
++  `out_business_no` varchar(64) NOT NULL COMMENT '业务仿重ID - 外部透传的，确保幂等',
+   `create_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+   `update_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '更新时间',
+   PRIMARY KEY (`id`),
+   UNIQUE KEY `uq_order_id` (`order_id`),
++  UNIQUE KEY `uq_out_business_no` (`out_business_no`),
+   KEY `idx_user_id_activity_id` (`user_id`,`activity_id`,`state`)
+ ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='抽奖活动单';
+ 
+@@ -89,14 +100,25 @@ CREATE TABLE `raffle_activity_order_001` (
+   `total_count` int(8) NOT NULL COMMENT '总次数',
+   `day_count` int(8) NOT NULL COMMENT '日次数',
+   `month_count` int(8) NOT NULL COMMENT '月次数',
+-  `state` varchar(8) NOT NULL DEFAULT 'complete' COMMENT '订单状态（complete）',
++  `state` varchar(16) NOT NULL DEFAULT 'complete' COMMENT '订单状态（complete）',
++  `out_business_no` varchar(64) NOT NULL COMMENT '业务仿重ID - 外部透传的，确保幂等',
+   `create_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+   `update_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '更新时间',
+   PRIMARY KEY (`id`),
+   UNIQUE KEY `uq_order_id` (`order_id`),
++  UNIQUE KEY `uq_out_business_no` (`out_business_no`),
+   KEY `idx_user_id_activity_id` (`user_id`,`activity_id`,`state`)
+ ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='抽奖活动单';
+ 
++LOCK TABLES `raffle_activity_order_001` WRITE;
++/*!40000 ALTER TABLE `raffle_activity_order_001` DISABLE KEYS */;
++
++INSERT INTO `raffle_activity_order_001` (`id`, `user_id`, `sku`, `activity_id`, `activity_name`, `strategy_id`, `order_id`, `order_time`, `total_count`, `day_count`, `month_count`, `state`, `out_business_no`, `create_time`, `update_time`)
++VALUES
++	(3,'xiaofuge',9011,100301,'测试活动',100006,'383240888158','2024-03-23 04:38:23',1,1,1,'completed','700091009111','2024-03-23 12:38:23','2024-03-23 12:38:23');
++
++/*!40000 ALTER TABLE `raffle_activity_order_001` ENABLE KEYS */;
++UNLOCK TABLES;
+ 
+ 
+ # 转储表 raffle_activity_order_002
+@@ -116,11 +138,13 @@ CREATE TABLE `raffle_activity_order_002` (
+   `total_count` int(8) NOT NULL COMMENT '总次数',
+   `day_count` int(8) NOT NULL COMMENT '日次数',
+   `month_count` int(8) NOT NULL COMMENT '月次数',
+-  `state` varchar(8) NOT NULL DEFAULT 'complete' COMMENT '订单状态（complete）',
++  `state` varchar(16) NOT NULL DEFAULT 'complete' COMMENT '订单状态（complete）',
++  `out_business_no` varchar(64) NOT NULL COMMENT '业务仿重ID - 外部透传的，确保幂等',
+   `create_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+   `update_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '更新时间',
+   PRIMARY KEY (`id`),
+   UNIQUE KEY `uq_order_id` (`order_id`),
++  UNIQUE KEY `uq_out_business_no` (`out_business_no`),
+   KEY `idx_user_id_activity_id` (`user_id`,`activity_id`,`state`)
+ ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='抽奖活动单';
+ 
+@@ -143,11 +167,13 @@ CREATE TABLE `raffle_activity_order_003` (
+   `total_count` int(8) NOT NULL COMMENT '总次数',
+   `day_count` int(8) NOT NULL COMMENT '日次数',
+   `month_count` int(8) NOT NULL COMMENT '月次数',
+-  `state` varchar(8) NOT NULL DEFAULT 'complete' COMMENT '订单状态（complete）',
++  `state` varchar(16) NOT NULL DEFAULT 'complete' COMMENT '订单状态（complete）',
++  `out_business_no` varchar(64) NOT NULL COMMENT '业务仿重ID - 外部透传的，确保幂等',
+   `create_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+   `update_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '更新时间',
+   PRIMARY KEY (`id`),
+   UNIQUE KEY `uq_order_id` (`order_id`),
++  UNIQUE KEY `uq_out_business_no` (`out_business_no`),
+   KEY `idx_user_id_activity_id` (`user_id`,`activity_id`,`state`)
+ ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='抽奖活动单';
+ 

@@ -10,7 +10,7 @@ import java.util.Date;
 
 /**
  * @author Fuzhengwei bugstack.cn @小傅哥
- * @description 活动sku库存清空消息
+ * @description 活动sku库存清空消息 事件继承自 BaseEvent，包含事件 ID、时间戳、业务数据 (SKU) 等
  * @create 2024-03-30 12:43
  */
 @Component
