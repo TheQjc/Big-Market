@@ -1,0 +1,50 @@
+commit eb43c03a1e7dd38c57627c6d3d2f3ee61a197a73
+Author: 小傅哥 <184172133@qq.com>
+Date:   Sat Apr 27 13:48:00 2024 +0800
+
+    fix：账户额度，新建账户，日月额度。需要从新的额度里创建 setMonthCountSurplus(activityAccountEntity.getMonthCount());
+
+diff --git a/big-market-domain/src/main/java/cn/bugstack/domain/activity/service/partake/RaffleActivityPartakeService.java b/big-market-domain/src/main/java/cn/bugstack/domain/activity/service/partake/RaffleActivityPartakeService.java
+index b5d3fd6..e38f631 100644
+--- a/big-market-domain/src/main/java/cn/bugstack/domain/activity/service/partake/RaffleActivityPartakeService.java
++++ b/big-market-domain/src/main/java/cn/bugstack/domain/activity/service/partake/RaffleActivityPartakeService.java
+@@ -54,7 +54,7 @@ public class RaffleActivityPartakeService extends AbstractRaffleActivityPartake{
+             activityAccountMonthEntity.setActivityId(activityId);
+             activityAccountMonthEntity.setMonth(month);
+             activityAccountMonthEntity.setMonthCount(activityAccountEntity.getMonthCount());
+-            activityAccountMonthEntity.setMonthCountSurplus(activityAccountEntity.getMonthCountSurplus());
++            activityAccountMonthEntity.setMonthCountSurplus(activityAccountEntity.getMonthCount());
+         }
+ 
+         // 查询日账户额度
+@@ -71,7 +71,7 @@ public class RaffleActivityPartakeService extends AbstractRaffleActivityPartake{
+             activityAccountDayEntity.setActivityId(activityId);
+             activityAccountDayEntity.setDay(day);
+             activityAccountDayEntity.setDayCount(activityAccountEntity.getDayCount());
+-            activityAccountDayEntity.setDayCountSurplus(activityAccountEntity.getDayCountSurplus());
++            activityAccountDayEntity.setDayCountSurplus(activityAccountEntity.getDayCount());
+         }
+ 
+         // 构建对象
+diff --git a/big-market-trigger/src/main/java/cn/bugstack/trigger/http/RaffleStrategyController.java b/big-market-trigger/src/main/java/cn/bugstack/trigger/http/RaffleStrategyController.java
+index ac7b0df..ded8277 100644
+--- a/big-market-trigger/src/main/java/cn/bugstack/trigger/http/RaffleStrategyController.java
++++ b/big-market-trigger/src/main/java/cn/bugstack/trigger/http/RaffleStrategyController.java
+@@ -50,7 +50,7 @@ public class RaffleStrategyController implements IRaffleStrategyService {
+ 
+     /**
+      * 策略装配，将策略信息装配到缓存中
+-     * <a href="http://localhost:8091/api/v1/raffle/strategy/strategy_armory">/api/v1/raffle/strategy_armory</a>
++     * <a href="http://localhost:8091/api/v1/raffle/strategy/strategy_armory">/api/v1/raffle/strategy/strategy_armory</a>
+      *
+      * @param strategyId 策略ID
+      * @return 装配结果
+@@ -79,7 +79,7 @@ public class RaffleStrategyController implements IRaffleStrategyService {
+ 
+     /**
+      * 查询奖品列表
+-     * <a href="http://localhost:8091/api/v1/raffle/strategy/query_raffle_award_list">/api/v1/raffle/query_raffle_award_list</a>
++     * <a href="http://localhost:8091/api/v1/raffle/strategy/query_raffle_award_list">/api/v1/raffle/strategy/query_raffle_award_list</a>
+      * 请求参数 raw json
+      *
+      * @param request {"activityId":100301,"userId":"xiaofuge"}

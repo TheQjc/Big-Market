@@ -1,0 +1,19 @@
+commit 038c5a7fbd921ca3d4307fc8f0434ad48ddbd77f
+Author: 小傅哥 <184172133@qq.com>
+Date:   Mon Apr 22 20:57:40 2024 +0800
+
+    fix：dbRouter.clear(); 多了一次
+
+diff --git a/big-market-trigger/src/main/java/cn/bugstack/trigger/job/SendMessageTaskJob.java b/big-market-trigger/src/main/java/cn/bugstack/trigger/job/SendMessageTaskJob.java
+index f73b07a..d3c3832 100644
+--- a/big-market-trigger/src/main/java/cn/bugstack/trigger/job/SendMessageTaskJob.java
++++ b/big-market-trigger/src/main/java/cn/bugstack/trigger/job/SendMessageTaskJob.java
+@@ -62,8 +62,6 @@ public class SendMessageTaskJob {
+             }
+         } catch (Exception e) {
+             log.error("定时任务，扫描MQ任务表发送消息失败。", e);
+-        } finally {
+-            dbRouter.clear();
+         }
+     }
+ 

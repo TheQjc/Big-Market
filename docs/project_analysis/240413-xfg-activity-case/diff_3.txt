@@ -1,0 +1,1201 @@
+commit 33fa21d69e57dacd0ad461fc1989344b41cc2adf
+Author: 小傅哥 <184172133@qq.com>
+Date:   Sat Apr 13 15:33:15 2024 +0800
+
+    feat：营销服务 第20节：抽奖活动流程串联
+
+diff --git a/big-market-api/src/main/java/cn/bugstack/trigger/api/IRaffleActivityService.java b/big-market-api/src/main/java/cn/bugstack/trigger/api/IRaffleActivityService.java
+new file mode 100644
+index 0000000..10c6b1e
+--- /dev/null
++++ b/big-market-api/src/main/java/cn/bugstack/trigger/api/IRaffleActivityService.java
+@@ -0,0 +1,28 @@
++package cn.bugstack.trigger.api;
++
++import cn.bugstack.trigger.api.dto.ActivityDrawRequestDTO;
++import cn.bugstack.trigger.api.dto.ActivityDrawResponseDTO;
++import cn.bugstack.types.model.Response;
++
++/**
++ * @author Fuzhengwei bugstack.cn @小傅哥
++ * @description 抽奖活动服务
++ * @create 2024-04-13 09:16
++ */
++public interface IRaffleActivityService {
++
++    /**
++     * 活动装配，数据预热缓存
++     * @param activityId 活动ID
++     * @return 装配结果
++     */
++    Response<Boolean> armory(Long activityId);
++
++    /**
++     * 活动抽奖接口
++     * @param request 请求对象
++     * @return 返回结果
++     */
++    Response<ActivityDrawResponseDTO> draw(ActivityDrawRequestDTO request);
++
++}
+diff --git a/big-market-api/src/main/java/cn/bugstack/trigger/api/IRaffleService.java b/big-market-api/src/main/java/cn/bugstack/trigger/api/IRaffleStrategyService.java
+similarity index 77%
+rename from big-market-api/src/main/java/cn/bugstack/trigger/api/IRaffleService.java
+rename to big-market-api/src/main/java/cn/bugstack/trigger/api/IRaffleStrategyService.java
+index e86e4f0..2a27cfe 100644
+--- a/big-market-api/src/main/java/cn/bugstack/trigger/api/IRaffleService.java
++++ b/big-market-api/src/main/java/cn/bugstack/trigger/api/IRaffleStrategyService.java
+@@ -1,9 +1,9 @@
+ package cn.bugstack.trigger.api;
+ 
+ import cn.bugstack.trigger.api.dto.RaffleAwardListRequestDTO;
+-import cn.bugstack.trigger.api.dto.RaffleRequestDTO;
++import cn.bugstack.trigger.api.dto.RaffleStrategyRequestDTO;
+ import cn.bugstack.trigger.api.dto.RaffleAwardListResponseDTO;
+-import cn.bugstack.trigger.api.dto.RaffleResponseDTO;
++import cn.bugstack.trigger.api.dto.RaffleStrategyResponseDTO;
+ import cn.bugstack.types.model.Response;
+ 
+ import java.util.List;
+@@ -13,7 +13,7 @@ import java.util.List;
+  * @description 抽奖服务接口
+  * @create 2024-02-14 09:33
+  */
+-public interface IRaffleService {
++public interface IRaffleStrategyService {
+ 
+     /**
+      * 策略装配接口
+@@ -37,6 +37,6 @@ public interface IRaffleService {
+      * @param requestDTO 请求参数
+      * @return 抽奖结果
+      */
+-    Response<RaffleResponseDTO> randomRaffle(RaffleRequestDTO requestDTO);
++    Response<RaffleStrategyResponseDTO> randomRaffle(RaffleStrategyRequestDTO requestDTO);
+ 
+ }
+diff --git a/big-market-api/src/main/java/cn/bugstack/trigger/api/dto/ActivityDrawRequestDTO.java b/big-market-api/src/main/java/cn/bugstack/trigger/api/dto/ActivityDrawRequestDTO.java
+new file mode 100644
+index 0000000..7fdefd9
+--- /dev/null
++++ b/big-market-api/src/main/java/cn/bugstack/trigger/api/dto/ActivityDrawRequestDTO.java
+@@ -0,0 +1,23 @@
++package cn.bugstack.trigger.api.dto;
++
++import lombok.Data;
++
++/**
++ * @author Fuzhengwei bugstack.cn @小傅哥
++ * @description 活动抽奖请求对象
++ * @create 2024-04-13 09:29
++ */
++@Data
++public class ActivityDrawRequestDTO {
++
++    /**
++     * 用户ID
++     */
++    private String userId;
++
++    /**
++     * 活动ID
++     */
++    private Long activityId;
++
++}
+diff --git a/big-market-api/src/main/java/cn/bugstack/trigger/api/dto/ActivityDrawResponseDTO.java b/big-market-api/src/main/java/cn/bugstack/trigger/api/dto/ActivityDrawResponseDTO.java
+new file mode 100644
+index 0000000..65174b6
+--- /dev/null
++++ b/big-market-api/src/main/java/cn/bugstack/trigger/api/dto/ActivityDrawResponseDTO.java
+@@ -0,0 +1,26 @@
++package cn.bugstack.trigger.api.dto;
++
++import lombok.AllArgsConstructor;
++import lombok.Builder;
++import lombok.Data;
++import lombok.NoArgsConstructor;
++
++/**
++ * @author Fuzhengwei bugstack.cn @小傅哥
++ * @description
++ * @create 2024-04-13 09:34
++ */
++@Data
++@Builder
++@AllArgsConstructor
++@NoArgsConstructor
++public class ActivityDrawResponseDTO {
++
++    // 奖品ID
++    private Integer awardId;
++    // 奖品标题
++    private String awardTitle;
++    // 排序编号【策略奖品配置的奖品顺序编号】
++    private Integer awardIndex;
++
++}
+diff --git a/big-market-api/src/main/java/cn/bugstack/trigger/api/dto/RaffleRequestDTO.java b/big-market-api/src/main/java/cn/bugstack/trigger/api/dto/RaffleStrategyRequestDTO.java
+similarity index 85%
+rename from big-market-api/src/main/java/cn/bugstack/trigger/api/dto/RaffleRequestDTO.java
+rename to big-market-api/src/main/java/cn/bugstack/trigger/api/dto/RaffleStrategyRequestDTO.java
+index f570251..0345eea 100644
+--- a/big-market-api/src/main/java/cn/bugstack/trigger/api/dto/RaffleRequestDTO.java
++++ b/big-market-api/src/main/java/cn/bugstack/trigger/api/dto/RaffleStrategyRequestDTO.java
+@@ -8,7 +8,7 @@ import lombok.Data;
+  * @create 2024-02-14 17:26
+  */
+ @Data
+-public class RaffleRequestDTO {
++public class RaffleStrategyRequestDTO {
+ 
+     // 抽奖策略ID
+     private Long strategyId;
+diff --git a/big-market-api/src/main/java/cn/bugstack/trigger/api/dto/RaffleResponseDTO.java b/big-market-api/src/main/java/cn/bugstack/trigger/api/dto/RaffleStrategyResponseDTO.java
+similarity index 91%
+rename from big-market-api/src/main/java/cn/bugstack/trigger/api/dto/RaffleResponseDTO.java
+rename to big-market-api/src/main/java/cn/bugstack/trigger/api/dto/RaffleStrategyResponseDTO.java
+index 36212cc..b9730ae 100644
+--- a/big-market-api/src/main/java/cn/bugstack/trigger/api/dto/RaffleResponseDTO.java
++++ b/big-market-api/src/main/java/cn/bugstack/trigger/api/dto/RaffleStrategyResponseDTO.java
+@@ -14,7 +14,7 @@ import lombok.NoArgsConstructor;
+ @Builder
+ @AllArgsConstructor
+ @NoArgsConstructor
+-public class RaffleResponseDTO {
++public class RaffleStrategyResponseDTO {
+ 
+     // 奖品ID
+     private Integer awardId;
+diff --git a/big-market-app/src/main/resources/mybatis/mapper/raffle_activity_mapper.xml b/big-market-app/src/main/resources/mybatis/mapper/raffle_activity_mapper.xml
+index 2fa2ff7..e7ad724 100644
+--- a/big-market-app/src/main/resources/mybatis/mapper/raffle_activity_mapper.xml
++++ b/big-market-app/src/main/resources/mybatis/mapper/raffle_activity_mapper.xml
+@@ -21,4 +21,12 @@
+         where activity_id = #{activityId}
+     </select>
+ 
++    <select id="queryStrategyIdByActivityId" parameterType="java.lang.Long" resultType="java.lang.Long">
++        select strategy_id from raffle_activity where activity_id = #{activityId}
++    </select>
++
++    <select id="queryActivityIdByStrategyId" parameterType="java.lang.Long" resultType="java.lang.Long">
++        select activity_id from raffle_activity where strategy_id = #{strategyId}
++    </select>
++
+ </mapper>
+diff --git a/big-market-app/src/main/resources/mybatis/mapper/raffle_activity_sku_mapper.xml b/big-market-app/src/main/resources/mybatis/mapper/raffle_activity_sku_mapper.xml
+index 1acd9fc..148c428 100644
+--- a/big-market-app/src/main/resources/mybatis/mapper/raffle_activity_sku_mapper.xml
++++ b/big-market-app/src/main/resources/mybatis/mapper/raffle_activity_sku_mapper.xml
+@@ -31,4 +31,8 @@
+         where sku = #{sku}
+     </update>
+ 
++    <select id="queryActivitySkuListByActivityId" parameterType="java.lang.Long" resultMap="dataMap">
++        select sku, activity_count_id, stock_count, stock_count_surplus from raffle_activity_sku where activity_id = #{activityId}
++    </select>
++
+ </mapper>
+diff --git a/big-market-app/src/main/resources/mybatis/mapper/user_raffle_order_mapper.xml b/big-market-app/src/main/resources/mybatis/mapper/user_raffle_order_mapper.xml
+index 5642501..10988f6 100644
+--- a/big-market-app/src/main/resources/mybatis/mapper/user_raffle_order_mapper.xml
++++ b/big-market-app/src/main/resources/mybatis/mapper/user_raffle_order_mapper.xml
+@@ -30,4 +30,10 @@
+         where user_id = #{userId} and activity_id = #{activityId} and order_state = 'create'
+     </select>
+ 
++    <update id="updateUserRaffleOrderStateUsed" parameterType="cn.bugstack.infrastructure.persistent.po.UserRaffleOrder">
++        update user_raffle_order
++        set order_state = 'used', update_time = now()
++        where user_id = #{userId} and order_id = #{orderId} and order_state = 'create'
++    </update>
++
+ </mapper>
+diff --git a/big-market-domain/src/main/java/cn/bugstack/domain/activity/model/entity/PartakeRaffleActivityEntity.java b/big-market-domain/src/main/java/cn/bugstack/domain/activity/model/entity/PartakeRaffleActivityEntity.java
+index 1ad61c7..ec2ed37 100644
+--- a/big-market-domain/src/main/java/cn/bugstack/domain/activity/model/entity/PartakeRaffleActivityEntity.java
++++ b/big-market-domain/src/main/java/cn/bugstack/domain/activity/model/entity/PartakeRaffleActivityEntity.java
+@@ -1,6 +1,9 @@
+ package cn.bugstack.domain.activity.model.entity;
+ 
++import lombok.AllArgsConstructor;
++import lombok.Builder;
+ import lombok.Data;
++import lombok.NoArgsConstructor;
+ 
+ /**
+  * @author Fuzhengwei bugstack.cn @小傅哥
+@@ -8,6 +11,9 @@ import lombok.Data;
+  * @create 2024-04-04 20:02
+  */
+ @Data
++@Builder
++@AllArgsConstructor
++@NoArgsConstructor
+ public class PartakeRaffleActivityEntity {
+ 
+     /**
+diff --git a/big-market-domain/src/main/java/cn/bugstack/domain/activity/repository/IActivityRepository.java b/big-market-domain/src/main/java/cn/bugstack/domain/activity/repository/IActivityRepository.java
+index cf0658c..47ccc2e 100644
+--- a/big-market-domain/src/main/java/cn/bugstack/domain/activity/repository/IActivityRepository.java
++++ b/big-market-domain/src/main/java/cn/bugstack/domain/activity/repository/IActivityRepository.java
+@@ -6,6 +6,7 @@ import cn.bugstack.domain.activity.model.entity.*;
+ import cn.bugstack.domain.activity.model.valobj.ActivitySkuStockKeyVO;
+ 
+ import java.util.Date;
++import java.util.List;
+ 
+ /**
+  * @author Fuzhengwei bugstack.cn @小傅哥
+@@ -46,4 +47,6 @@ public interface IActivityRepository {
+ 
+     void saveCreatePartakeOrderAggregate(CreatePartakeOrderAggregate createPartakeOrderAggregate);
+ 
++    List<ActivitySkuEntity> queryActivitySkuListByActivityId(Long activityId);
++
+ }
+diff --git a/big-market-domain/src/main/java/cn/bugstack/domain/activity/service/IRaffleActivityPartakeService.java b/big-market-domain/src/main/java/cn/bugstack/domain/activity/service/IRaffleActivityPartakeService.java
+index cd60fa4..bf541ac 100644
+--- a/big-market-domain/src/main/java/cn/bugstack/domain/activity/service/IRaffleActivityPartakeService.java
++++ b/big-market-domain/src/main/java/cn/bugstack/domain/activity/service/IRaffleActivityPartakeService.java
+@@ -10,6 +10,15 @@ import cn.bugstack.domain.activity.model.entity.UserRaffleOrderEntity;
+  */
+ public interface IRaffleActivityPartakeService {
+ 
++    /**
++     * 创建抽奖单；用户参与抽奖活动，扣减活动账户库存，产生抽奖单。如存在未被使用的抽奖单则直接返回已存在的抽奖单。
++     *
++     * @param userId     用户ID
++     * @param activityId 活动ID
++     * @return 用户抽奖订单实体对象
++     */
++    UserRaffleOrderEntity createOrder(String userId, Long activityId);
++
+     /**
+      * 创建抽奖单；用户参与抽奖活动，扣减活动账户库存，产生抽奖单。如存在未被使用的抽奖单则直接返回已存在的抽奖单。
+      *
+diff --git a/big-market-domain/src/main/java/cn/bugstack/domain/activity/service/armory/ActivityArmory.java b/big-market-domain/src/main/java/cn/bugstack/domain/activity/service/armory/ActivityArmory.java
+index c26465c..79ebd37 100644
+--- a/big-market-domain/src/main/java/cn/bugstack/domain/activity/service/armory/ActivityArmory.java
++++ b/big-market-domain/src/main/java/cn/bugstack/domain/activity/service/armory/ActivityArmory.java
+@@ -10,6 +10,7 @@ import org.springframework.stereotype.Service;
+ 
+ import javax.annotation.Resource;
+ import java.util.Date;
++import java.util.List;
+ import java.util.concurrent.TimeUnit;
+ 
+ /**
+@@ -24,6 +25,21 @@ public class ActivityArmory implements IActivityArmory, IActivityDispatch {
+     @Resource
+     private IActivityRepository activityRepository;
+ 
++    @Override
++    public boolean assembleActivitySkuByActivityId(Long activityId) {
++        List<ActivitySkuEntity> activitySkuEntities = activityRepository.queryActivitySkuListByActivityId(activityId);
++        for (ActivitySkuEntity activitySkuEntity : activitySkuEntities) {
++            cacheActivitySkuStockCount(activitySkuEntity.getSku(), activitySkuEntity.getStockCountSurplus());
++            // 预热活动次数【查询时预热到缓存】
++            activityRepository.queryRaffleActivityCountByActivityCountId(activitySkuEntity.getActivityCountId());
++        }
++
++        // 预热活动【查询时预热到缓存】
++        activityRepository.queryRaffleActivityByActivityId(activityId);
++
++        return true;
++    }
++
+     @Override
+     public boolean assembleActivitySku(Long sku) {
+         // 预热活动sku库存
+diff --git a/big-market-domain/src/main/java/cn/bugstack/domain/activity/service/armory/IActivityArmory.java b/big-market-domain/src/main/java/cn/bugstack/domain/activity/service/armory/IActivityArmory.java
+index 3eca5a9..02ca521 100644
+--- a/big-market-domain/src/main/java/cn/bugstack/domain/activity/service/armory/IActivityArmory.java
++++ b/big-market-domain/src/main/java/cn/bugstack/domain/activity/service/armory/IActivityArmory.java
+@@ -7,6 +7,8 @@ package cn.bugstack.domain.activity.service.armory;
+  */
+ public interface IActivityArmory {
+ 
++    boolean assembleActivitySkuByActivityId(Long activityId);
++
+     boolean assembleActivitySku(Long sku);
+ 
+ }
+diff --git a/big-market-domain/src/main/java/cn/bugstack/domain/activity/service/armory/IActivityDispatch.java b/big-market-domain/src/main/java/cn/bugstack/domain/activity/service/armory/IActivityDispatch.java
+index f0f8c28..1d623c0 100644
+--- a/big-market-domain/src/main/java/cn/bugstack/domain/activity/service/armory/IActivityDispatch.java
++++ b/big-market-domain/src/main/java/cn/bugstack/domain/activity/service/armory/IActivityDispatch.java
+@@ -1,7 +1,5 @@
+ package cn.bugstack.domain.activity.service.armory;
+ 
+-import cn.bugstack.domain.activity.model.valobj.ActivitySkuStockKeyVO;
+-
+ import java.util.Date;
+ 
+ /**
+diff --git a/big-market-domain/src/main/java/cn/bugstack/domain/activity/service/partake/AbstractRaffleActivityPartake.java b/big-market-domain/src/main/java/cn/bugstack/domain/activity/service/partake/AbstractRaffleActivityPartake.java
+index a64ca84..8c9e9f1 100644
+--- a/big-market-domain/src/main/java/cn/bugstack/domain/activity/service/partake/AbstractRaffleActivityPartake.java
++++ b/big-market-domain/src/main/java/cn/bugstack/domain/activity/service/partake/AbstractRaffleActivityPartake.java
+@@ -28,6 +28,14 @@ public abstract class AbstractRaffleActivityPartake implements IRaffleActivityPa
+         this.activityRepository = activityRepository;
+     }
+ 
++    @Override
++    public UserRaffleOrderEntity createOrder(String userId, Long activityId) {
++        return createOrder(PartakeRaffleActivityEntity.builder()
++                .userId(userId)
++                .activityId(activityId)
++                .build());
++    }
++
+     @Override
+     public UserRaffleOrderEntity createOrder(PartakeRaffleActivityEntity partakeRaffleActivityEntity) {
+         // 0. 基础信息
+diff --git a/big-market-domain/src/main/java/cn/bugstack/domain/strategy/model/entity/RaffleAwardEntity.java b/big-market-domain/src/main/java/cn/bugstack/domain/strategy/model/entity/RaffleAwardEntity.java
+index faf5722..de69db0 100644
+--- a/big-market-domain/src/main/java/cn/bugstack/domain/strategy/model/entity/RaffleAwardEntity.java
++++ b/big-market-domain/src/main/java/cn/bugstack/domain/strategy/model/entity/RaffleAwardEntity.java
+@@ -18,6 +18,8 @@ public class RaffleAwardEntity {
+ 
+     /** 奖品ID */
+     private Integer awardId;
++    /** 抽奖奖品标题 */
++    private String awardTitle;
+     /** 奖品配置信息 */
+     private String awardConfig;
+     /** 奖品顺序号 */
+diff --git a/big-market-domain/src/main/java/cn/bugstack/domain/strategy/repository/IStrategyRepository.java b/big-market-domain/src/main/java/cn/bugstack/domain/strategy/repository/IStrategyRepository.java
+index e1fc321..7f05ea3 100644
+--- a/big-market-domain/src/main/java/cn/bugstack/domain/strategy/repository/IStrategyRepository.java
++++ b/big-market-domain/src/main/java/cn/bugstack/domain/strategy/repository/IStrategyRepository.java
+@@ -90,4 +90,21 @@ public interface IStrategyRepository {
+      */
+     StrategyAwardEntity queryStrategyAwardEntity(Long strategyId, Integer awardId);
+ 
++    /**
++     * 查询策略ID
++     *
++     * @param activityId 活动ID
++     * @return 策略ID
++     */
++    Long queryStrategyIdByActivityId(Long activityId);
++
++    /**
++     * 查询用户抽奖次数 - 当天的；策略ID:活动ID 1:1 的配置，可以直接用 strategyId 查询。
++     *
++     * @param userId     用户ID
++     * @param strategyId 策略ID
++     * @return 用户今日参与次数
++     */
++    Integer queryTodayUserRaffleCount(String userId, Long strategyId);
++
+ }
+diff --git a/big-market-domain/src/main/java/cn/bugstack/domain/strategy/service/AbstractRaffleStrategy.java b/big-market-domain/src/main/java/cn/bugstack/domain/strategy/service/AbstractRaffleStrategy.java
+index 171b415..5291f17 100644
+--- a/big-market-domain/src/main/java/cn/bugstack/domain/strategy/service/AbstractRaffleStrategy.java
++++ b/big-market-domain/src/main/java/cn/bugstack/domain/strategy/service/AbstractRaffleStrategy.java
+@@ -66,6 +66,7 @@ public abstract class AbstractRaffleStrategy implements IRaffleStrategy {
+         StrategyAwardEntity strategyAward = repository.queryStrategyAwardEntity(strategyId, awardId);
+         return RaffleAwardEntity.builder()
+                 .awardId(awardId)
++                .awardTitle(strategyAward.getAwardTitle())
+                 .awardConfig(awardConfig)
+                 .sort(strategyAward.getSort())
+                 .build();
+diff --git a/big-market-domain/src/main/java/cn/bugstack/domain/strategy/service/armory/IStrategyArmory.java b/big-market-domain/src/main/java/cn/bugstack/domain/strategy/service/armory/IStrategyArmory.java
+index 2bc451b..a15bee4 100644
+--- a/big-market-domain/src/main/java/cn/bugstack/domain/strategy/service/armory/IStrategyArmory.java
++++ b/big-market-domain/src/main/java/cn/bugstack/domain/strategy/service/armory/IStrategyArmory.java
+@@ -15,4 +15,12 @@ public interface IStrategyArmory {
+      */
+     boolean assembleLotteryStrategy(Long strategyId);
+ 
++    /**
++     * 装配抽奖策略配置「触发的时机可以为活动审核通过后进行调用」
++     *
++     * @param activityId 活动ID
++     * @return 装配结果
++     */
++    boolean assembleLotteryStrategyByActivityId(Long activityId);
++
+ }
+diff --git a/big-market-domain/src/main/java/cn/bugstack/domain/strategy/service/armory/StrategyArmoryDispatch.java b/big-market-domain/src/main/java/cn/bugstack/domain/strategy/service/armory/StrategyArmoryDispatch.java
+index ce8ca73..83f6cf9 100644
+--- a/big-market-domain/src/main/java/cn/bugstack/domain/strategy/service/armory/StrategyArmoryDispatch.java
++++ b/big-market-domain/src/main/java/cn/bugstack/domain/strategy/service/armory/StrategyArmoryDispatch.java
+@@ -29,6 +29,12 @@ public class StrategyArmoryDispatch implements IStrategyArmory, IStrategyDispatc
+ 
+     private final SecureRandom secureRandom = new SecureRandom();
+ 
++    @Override
++    public boolean assembleLotteryStrategyByActivityId(Long activityId) {
++        Long strategyId = repository.queryStrategyIdByActivityId(activityId);
++        return assembleLotteryStrategy(strategyId);
++    }
++
+     @Override
+     public boolean assembleLotteryStrategy(Long strategyId) {
+         // 1. 查询策略配置
+diff --git a/big-market-domain/src/main/java/cn/bugstack/domain/strategy/service/rule/tree/impl/RuleLockLogicTreeNode.java b/big-market-domain/src/main/java/cn/bugstack/domain/strategy/service/rule/tree/impl/RuleLockLogicTreeNode.java
+index b035cfd..e26ac6d 100644
+--- a/big-market-domain/src/main/java/cn/bugstack/domain/strategy/service/rule/tree/impl/RuleLockLogicTreeNode.java
++++ b/big-market-domain/src/main/java/cn/bugstack/domain/strategy/service/rule/tree/impl/RuleLockLogicTreeNode.java
+@@ -18,8 +18,8 @@ import javax.annotation.Resource;
+ @Component("rule_lock")
+ public class RuleLockLogicTreeNode implements ILogicTreeNode {
+ 
+-    // 用户抽奖次数，后续完成这部分流程开发的时候，从数据库/Redis中读取
+-    private Long userRaffleCount = 10L;
++    @Resource
++    private IStrategyRepository repository;
+ 
+     @Override
+     public DefaultTreeFactory.TreeActionEntity logic(String userId, Long strategyId, Integer awardId, String ruleValue) {
+@@ -32,13 +32,19 @@ public class RuleLockLogicTreeNode implements ILogicTreeNode {
+             throw new RuntimeException("规则过滤-次数锁异常 ruleValue: " + ruleValue + " 配置不正确");
+         }
+ 
++        // 查询用户抽奖次数 - 当天的；策略ID:活动ID 1:1 的配置，可以直接用 strategyId 查询。
++        Integer userRaffleCount = repository.queryTodayUserRaffleCount(userId, strategyId);
++
+         // 用户抽奖次数大于规则限定值，规则放行
+         if (userRaffleCount >= raffleCount) {
++            log.info("规则过滤-次数锁【放行】 userId:{} strategyId:{} awardId:{} raffleCount:{} userRaffleCount:{}", userId, strategyId, awardId, userRaffleCount, userRaffleCount);
+             return DefaultTreeFactory.TreeActionEntity.builder()
+                     .ruleLogicCheckType(RuleLogicCheckTypeVO.ALLOW)
+                     .build();
+         }
+ 
++        log.info("规则过滤-次数锁【拦截】 userId:{} strategyId:{} awardId:{} raffleCount:{} userRaffleCount:{}", userId, strategyId, awardId, userRaffleCount, userRaffleCount);
++
+         // 用户抽奖次数小于规则限定值，规则拦截
+         return DefaultTreeFactory.TreeActionEntity.builder()
+                 .ruleLogicCheckType(RuleLogicCheckTypeVO.TAKE_OVER)
+diff --git a/big-market-infrastructure/src/main/java/cn/bugstack/infrastructure/persistent/dao/IRaffleActivityDao.java b/big-market-infrastructure/src/main/java/cn/bugstack/infrastructure/persistent/dao/IRaffleActivityDao.java
+index c6c4d6e..b052d68 100644
+--- a/big-market-infrastructure/src/main/java/cn/bugstack/infrastructure/persistent/dao/IRaffleActivityDao.java
++++ b/big-market-infrastructure/src/main/java/cn/bugstack/infrastructure/persistent/dao/IRaffleActivityDao.java
+@@ -14,4 +14,8 @@ public interface IRaffleActivityDao {
+ 
+     RaffleActivity queryRaffleActivityByActivityId(Long activityId);
+ 
++    Long queryStrategyIdByActivityId(Long activityId);
++
++    Long queryActivityIdByStrategyId(Long strategyId);
++
+ }
+diff --git a/big-market-infrastructure/src/main/java/cn/bugstack/infrastructure/persistent/dao/IRaffleActivitySkuDao.java b/big-market-infrastructure/src/main/java/cn/bugstack/infrastructure/persistent/dao/IRaffleActivitySkuDao.java
+index d32273d..b869138 100644
+--- a/big-market-infrastructure/src/main/java/cn/bugstack/infrastructure/persistent/dao/IRaffleActivitySkuDao.java
++++ b/big-market-infrastructure/src/main/java/cn/bugstack/infrastructure/persistent/dao/IRaffleActivitySkuDao.java
+@@ -3,6 +3,8 @@ package cn.bugstack.infrastructure.persistent.dao;
+ import cn.bugstack.infrastructure.persistent.po.RaffleActivitySku;
+ import org.apache.ibatis.annotations.Mapper;
+ 
++import java.util.List;
++
+ /**
+  * @author Fuzhengwei bugstack.cn @小傅哥
+  * @description 商品sku dao
+@@ -17,4 +19,6 @@ public interface IRaffleActivitySkuDao {
+ 
+     void clearActivitySkuStock(Long sku);
+ 
++    List<RaffleActivitySku> queryActivitySkuListByActivityId(Long activityId);
++
+ }
+diff --git a/big-market-infrastructure/src/main/java/cn/bugstack/infrastructure/persistent/dao/IUserRaffleOrderDao.java b/big-market-infrastructure/src/main/java/cn/bugstack/infrastructure/persistent/dao/IUserRaffleOrderDao.java
+index aed143f..83c1e0e 100644
+--- a/big-market-infrastructure/src/main/java/cn/bugstack/infrastructure/persistent/dao/IUserRaffleOrderDao.java
++++ b/big-market-infrastructure/src/main/java/cn/bugstack/infrastructure/persistent/dao/IUserRaffleOrderDao.java
+@@ -19,4 +19,6 @@ public interface IUserRaffleOrderDao {
+     @DBRouter
+     UserRaffleOrder queryNoUsedRaffleOrder(UserRaffleOrder userRaffleOrderReq);
+ 
++    int updateUserRaffleOrderStateUsed(UserRaffleOrder userRaffleOrderReq);
++
+ }
+diff --git a/big-market-infrastructure/src/main/java/cn/bugstack/infrastructure/persistent/po/RaffleActivityAccountDay.java b/big-market-infrastructure/src/main/java/cn/bugstack/infrastructure/persistent/po/RaffleActivityAccountDay.java
+index 42f59b8..84f5257 100644
+--- a/big-market-infrastructure/src/main/java/cn/bugstack/infrastructure/persistent/po/RaffleActivityAccountDay.java
++++ b/big-market-infrastructure/src/main/java/cn/bugstack/infrastructure/persistent/po/RaffleActivityAccountDay.java
+@@ -5,6 +5,7 @@ import lombok.Builder;
+ import lombok.Data;
+ import lombok.NoArgsConstructor;
+ 
++import java.text.SimpleDateFormat;
+ import java.util.Date;
+ 
+ /**
+@@ -18,21 +19,43 @@ import java.util.Date;
+ @NoArgsConstructor
+ public class RaffleActivityAccountDay {
+ 
+-    /** 自增ID */
++    private final SimpleDateFormat dateFormatDay = new SimpleDateFormat("yyyy-MM-dd");
++
++    /**
++     * 自增ID
++     */
+     private String id;
+-    /** 用户ID */
++    /**
++     * 用户ID
++     */
+     private String userId;
+-    /** 活动ID */
++    /**
++     * 活动ID
++     */
+     private Long activityId;
+-    /** 日期（yyyy-mm-dd） */
++    /**
++     * 日期（yyyy-mm-dd）
++     */
+     private String day;
+-    /** 日次数 */
++    /**
++     * 日次数
++     */
+     private Integer dayCount;
+-    /** 日次数-剩余 */
++    /**
++     * 日次数-剩余
++     */
+     private Integer dayCountSurplus;
+-    /** 创建时间 */
++    /**
++     * 创建时间
++     */
+     private Date createTime;
+-    /** 更新时间 */
++    /**
++     * 更新时间
++     */
+     private Date updateTime;
+ 
++    public String currentDay() {
++        return dateFormatDay.format(new Date());
++    }
++
+ }
+diff --git a/big-market-infrastructure/src/main/java/cn/bugstack/infrastructure/persistent/repository/ActivityRepository.java b/big-market-infrastructure/src/main/java/cn/bugstack/infrastructure/persistent/repository/ActivityRepository.java
+index b953c4a..51ba9e7 100644
+--- a/big-market-infrastructure/src/main/java/cn/bugstack/infrastructure/persistent/repository/ActivityRepository.java
++++ b/big-market-infrastructure/src/main/java/cn/bugstack/infrastructure/persistent/repository/ActivityRepository.java
+@@ -24,7 +24,9 @@ import org.springframework.stereotype.Repository;
+ import org.springframework.transaction.support.TransactionTemplate;
+ 
+ import javax.annotation.Resource;
++import java.util.ArrayList;
+ import java.util.Date;
++import java.util.List;
+ import java.util.concurrent.TimeUnit;
+ 
+ /**
+@@ -439,4 +441,19 @@ public class ActivityRepository implements IActivityRepository {
+         }
+     }
+ 
++    @Override
++    public List<ActivitySkuEntity> queryActivitySkuListByActivityId(Long activityId) {
++        List<RaffleActivitySku> raffleActivitySkus = raffleActivitySkuDao.queryActivitySkuListByActivityId(activityId);
++        List<ActivitySkuEntity> activitySkuEntities = new ArrayList<>(raffleActivitySkus.size());
++        for (RaffleActivitySku raffleActivitySku:raffleActivitySkus){
++            ActivitySkuEntity activitySkuEntity = new ActivitySkuEntity();
++            activitySkuEntity.setSku(raffleActivitySku.getSku());
++            activitySkuEntity.setActivityCountId(raffleActivitySku.getActivityCountId());
++            activitySkuEntity.setStockCount(raffleActivitySku.getStockCount());
++            activitySkuEntity.setStockCountSurplus(raffleActivitySku.getStockCountSurplus());
++            activitySkuEntities.add(activitySkuEntity);
++        }
++        return activitySkuEntities;
++    }
++
+ }
+diff --git a/big-market-infrastructure/src/main/java/cn/bugstack/infrastructure/persistent/repository/AwardRepository.java b/big-market-infrastructure/src/main/java/cn/bugstack/infrastructure/persistent/repository/AwardRepository.java
+index 4348045..1afd964 100644
+--- a/big-market-infrastructure/src/main/java/cn/bugstack/infrastructure/persistent/repository/AwardRepository.java
++++ b/big-market-infrastructure/src/main/java/cn/bugstack/infrastructure/persistent/repository/AwardRepository.java
+@@ -7,8 +7,10 @@ import cn.bugstack.domain.award.repository.IAwardRepository;
+ import cn.bugstack.infrastructure.event.EventPublisher;
+ import cn.bugstack.infrastructure.persistent.dao.ITaskDao;
+ import cn.bugstack.infrastructure.persistent.dao.IUserAwardRecordDao;
++import cn.bugstack.infrastructure.persistent.dao.IUserRaffleOrderDao;
+ import cn.bugstack.infrastructure.persistent.po.Task;
+ import cn.bugstack.infrastructure.persistent.po.UserAwardRecord;
++import cn.bugstack.infrastructure.persistent.po.UserRaffleOrder;
+ import cn.bugstack.middleware.db.router.strategy.IDBRouterStrategy;
+ import cn.bugstack.types.enums.ResponseCode;
+ import cn.bugstack.types.exception.AppException;
+@@ -34,6 +36,8 @@ public class AwardRepository implements IAwardRepository {
+     @Resource
+     private IUserAwardRecordDao userAwardRecordDao;
+     @Resource
++    private IUserRaffleOrderDao userRaffleOrderDao;
++    @Resource
+     private IDBRouterStrategy dbRouter;
+     @Resource
+     private TransactionTemplate transactionTemplate;
+@@ -66,6 +70,10 @@ public class AwardRepository implements IAwardRepository {
+         task.setMessage(JSON.toJSONString(taskEntity.getMessage()));
+         task.setState(taskEntity.getState().getCode());
+ 
++        UserRaffleOrder userRaffleOrderReq = new UserRaffleOrder();
++        userRaffleOrderReq.setUserId(userAwardRecordEntity.getUserId());
++        userRaffleOrderReq.setOrderId(userAwardRecordEntity.getOrderId());
++
+         try {
+             dbRouter.doRouter(userId);
+             transactionTemplate.execute(status -> {
+@@ -74,6 +82,13 @@ public class AwardRepository implements IAwardRepository {
+                     userAwardRecordDao.insert(userAwardRecord);
+                     // 写入任务
+                     taskDao.insert(task);
++                    // 更新抽奖单
++                    int count = userRaffleOrderDao.updateUserRaffleOrderStateUsed(userRaffleOrderReq);
++                    if (1 != count) {
++                        status.setRollbackOnly();
++                        log.error("写入中奖记录，用户抽奖单已使用过，不可重复抽奖 userId: {} activityId: {} awardId: {}", userId, activityId, awardId);
++                        throw new AppException(ResponseCode.ACTIVITY_ORDER_ERROR.getCode(), ResponseCode.ACTIVITY_ORDER_ERROR.getInfo());
++                    }
+                     return 1;
+                 } catch (DuplicateKeyException e) {
+                     status.setRollbackOnly();
+diff --git a/big-market-infrastructure/src/main/java/cn/bugstack/infrastructure/persistent/repository/StrategyRepository.java b/big-market-infrastructure/src/main/java/cn/bugstack/infrastructure/persistent/repository/StrategyRepository.java
+index 999c27f..5c6f2d6 100644
+--- a/big-market-infrastructure/src/main/java/cn/bugstack/infrastructure/persistent/repository/StrategyRepository.java
++++ b/big-market-infrastructure/src/main/java/cn/bugstack/infrastructure/persistent/repository/StrategyRepository.java
+@@ -33,6 +33,8 @@ import static cn.bugstack.types.enums.ResponseCode.UN_ASSEMBLED_STRATEGY_ARMORY;
+ @Repository
+ public class StrategyRepository implements IStrategyRepository {
+ 
++    @Resource
++    private IRaffleActivityDao raffleActivityDao;
+     @Resource
+     private IStrategyDao strategyDao;
+     @Resource
+@@ -40,6 +42,8 @@ public class StrategyRepository implements IStrategyRepository {
+     @Resource
+     private IStrategyAwardDao strategyAwardDao;
+     @Resource
++    private IRaffleActivityAccountDayDao raffleActivityAccountDayDao;
++    @Resource
+     private IRedisService redisService;
+     @Resource
+     private IRuleTreeDao ruleTreeDao;
+@@ -73,7 +77,7 @@ public class StrategyRepository implements IStrategyRepository {
+         redisService.setValue(cacheKey, strategyAwardEntities);
+         return strategyAwardEntities;
+     }
+-    
++
+     /**
+      * 在 Redisson 中，当你调用 getMap 方法时，如果指定的 key 不存在，Redisson 并不会立即在 Redis 数据库中创建这个 key。相反，它会返回一个 RMap 对象的实例，这个实例是一个本地的 Java 对象，它代表了 Redis 中的一个哈希（hash）。
+      * <p>
+@@ -295,4 +299,24 @@ public class StrategyRepository implements IStrategyRepository {
+         return strategyAwardEntity;
+     }
+ 
++    @Override
++    public Long queryStrategyIdByActivityId(Long activityId) {
++        return raffleActivityDao.queryStrategyIdByActivityId(activityId);
++    }
++
++    @Override
++    public Integer queryTodayUserRaffleCount(String userId, Long strategyId) {
++        // 活动ID
++        Long activityId = raffleActivityDao.queryActivityIdByStrategyId(strategyId);
++        // 封装参数
++        RaffleActivityAccountDay raffleActivityAccountDayReq = new RaffleActivityAccountDay();
++        raffleActivityAccountDayReq.setUserId(userId);
++        raffleActivityAccountDayReq.setActivityId(activityId);
++        raffleActivityAccountDayReq.setDay(raffleActivityAccountDayReq.currentDay());
++        RaffleActivityAccountDay raffleActivityAccountDay = raffleActivityAccountDayDao.queryActivityAccountDayByUserId(raffleActivityAccountDayReq);
++        if (null == raffleActivityAccountDay) return 0;
++        // 总次数 - 剩余的，等于今日参与的
++        return raffleActivityAccountDay.getDayCount() - raffleActivityAccountDay.getDayCountSurplus();
++    }
++
+ }
+diff --git a/big-market-trigger/src/main/java/cn/bugstack/trigger/http/RaffleActivityController.java b/big-market-trigger/src/main/java/cn/bugstack/trigger/http/RaffleActivityController.java
+new file mode 100644
+index 0000000..b006bcd
+--- /dev/null
++++ b/big-market-trigger/src/main/java/cn/bugstack/trigger/http/RaffleActivityController.java
+@@ -0,0 +1,156 @@
++package cn.bugstack.trigger.http;
++
++import cn.bugstack.domain.activity.model.entity.UserRaffleOrderEntity;
++import cn.bugstack.domain.activity.service.IRaffleActivityPartakeService;
++import cn.bugstack.domain.activity.service.armory.IActivityArmory;
++import cn.bugstack.domain.award.model.entity.UserAwardRecordEntity;
++import cn.bugstack.domain.award.model.valobj.AwardStateVO;
++import cn.bugstack.domain.award.service.IAwardService;
++import cn.bugstack.domain.strategy.model.entity.RaffleAwardEntity;
++import cn.bugstack.domain.strategy.model.entity.RaffleFactorEntity;
++import cn.bugstack.domain.strategy.service.IRaffleStrategy;
++import cn.bugstack.domain.strategy.service.armory.IStrategyArmory;
++import cn.bugstack.trigger.api.IRaffleActivityService;
++import cn.bugstack.trigger.api.dto.ActivityDrawRequestDTO;
++import cn.bugstack.trigger.api.dto.ActivityDrawResponseDTO;
++import cn.bugstack.types.enums.ResponseCode;
++import cn.bugstack.types.exception.AppException;
++import cn.bugstack.types.model.Response;
++import lombok.extern.slf4j.Slf4j;
++import org.apache.commons.lang3.StringUtils;
++import org.springframework.web.bind.annotation.*;
++
++import javax.annotation.Resource;
++import java.util.Date;
++
++/**
++ * @author Fuzhengwei bugstack.cn @小傅哥
++ * @description 抽奖活动服务 注意；在不引用 application/case 层的时候，就需要让接口实现层来做领域的串联。一些较大规模的系统，需要加入 case 层。
++ * @create 2024-04-13 09:42
++ */
++@Slf4j
++@RestController()
++@CrossOrigin("${app.config.cross-origin}")
++@RequestMapping("/api/${app.config.api-version}/raffle/activity/")
++public class RaffleActivityController implements IRaffleActivityService {
++
++    @Resource
++    private IRaffleActivityPartakeService raffleActivityPartakeService;
++    @Resource
++    private IRaffleStrategy raffleStrategy;
++    @Resource
++    private IAwardService awardService;
++    @Resource
++    private IActivityArmory activityArmory;
++    @Resource
++    private IStrategyArmory strategyArmory;
++
++    /**
++     * 活动装配 - 数据预热 | 把活动配置的对应的 sku 一起装配
++     *
++     * @param activityId 活动ID
++     * @return 装配结果
++     * <p>
++     * 接口：<a href="http://localhost:8091/api/v1/raffle/activity/armory">/api/v1/raffle/activity/armory</a>
++     * 入参：{"activityId":100001,"userId":"xiaofuge"}
++     *
++     * curl --request GET \
++     *   --url 'http://localhost:8091/api/v1/raffle/activity/armory?activityId=100301'
++     */
++    @RequestMapping(value = "armory", method = RequestMethod.GET)
++    @Override
++    public Response<Boolean> armory(@RequestParam Long activityId) {
++        try {
++            log.info("活动装配，数据预热，开始 activityId:{}", activityId);
++            // 1. 活动装配
++            activityArmory.assembleActivitySkuByActivityId(activityId);
++            // 2. 策略装配
++            strategyArmory.assembleLotteryStrategyByActivityId(activityId);
++            Response<Boolean> response = Response.<Boolean>builder()
++                    .code(ResponseCode.SUCCESS.getCode())
++                    .info(ResponseCode.SUCCESS.getInfo())
++                    .data(true)
++                    .build();
++            log.info("活动装配，数据预热，完成 activityId:{}", activityId);
++            return response;
++        } catch (Exception e) {
++            log.error("活动装配，数据预热，失败 activityId:{}", activityId, e);
++            return Response.<Boolean>builder()
++                    .code(ResponseCode.UN_ERROR.getCode())
++                    .info(ResponseCode.UN_ERROR.getInfo())
++                    .build();
++        }
++    }
++
++    /**
++     * 抽奖接口
++     *
++     * @param request 请求对象
++     * @return 抽奖结果
++     * <p>
++     * 接口：<a href="http://localhost:8091/api/v1/raffle/activity/draw">/api/v1/raffle/activity/draw</a>
++     * 入参：{"activityId":100001,"userId":"xiaofuge"}
++     *
++     * curl --request POST \
++     *   --url http://localhost:8091/api/v1/raffle/activity/draw \
++     *   --header 'content-type: application/json' \
++     *   --data '{
++     *     "userId":"xiaofuge",
++     *     "activityId": 100301
++     * }'
++     */
++    @RequestMapping(value = "draw", method = RequestMethod.POST)
++    @Override
++    public Response<ActivityDrawResponseDTO> draw(@RequestBody ActivityDrawRequestDTO request) {
++        try {
++            log.info("活动抽奖 userId:{} activityId:{}", request.getUserId(), request.getActivityId());
++            // 1. 参数校验
++            if (StringUtils.isBlank(request.getUserId()) || null == request.getActivityId()) {
++                throw new AppException(ResponseCode.ILLEGAL_PARAMETER.getCode(), ResponseCode.ILLEGAL_PARAMETER.getInfo());
++            }
++            // 2. 参与活动 - 创建参与记录订单
++            UserRaffleOrderEntity orderEntity = raffleActivityPartakeService.createOrder(request.getUserId(), request.getActivityId());
++            log.info("活动抽奖，创建订单 userId:{} activityId:{} orderId:{}", request.getUserId(), request.getActivityId(), orderEntity.getOrderId());
++            // 3. 抽奖策略 - 执行抽奖
++            RaffleAwardEntity raffleAwardEntity = raffleStrategy.performRaffle(RaffleFactorEntity.builder()
++                    .userId(orderEntity.getUserId())
++                    .strategyId(orderEntity.getStrategyId())
++                    .build());
++            // 4. 存放结果 - 写入中奖记录
++            UserAwardRecordEntity userAwardRecord = UserAwardRecordEntity.builder()
++                    .userId(orderEntity.getUserId())
++                    .activityId(orderEntity.getActivityId())
++                    .strategyId(orderEntity.getStrategyId())
++                    .orderId(orderEntity.getOrderId())
++                    .awardId(raffleAwardEntity.getAwardId())
++                    .awardTitle(raffleAwardEntity.getAwardTitle())
++                    .awardTime(new Date())
++                    .awardState(AwardStateVO.create)
++                    .build();
++            awardService.saveUserAwardRecord(userAwardRecord);
++            // 5. 返回结果
++            return Response.<ActivityDrawResponseDTO>builder()
++                    .code(ResponseCode.SUCCESS.getCode())
++                    .info(ResponseCode.SUCCESS.getInfo())
++                    .data(ActivityDrawResponseDTO.builder()
++                            .awardId(raffleAwardEntity.getAwardId())
++                            .awardTitle(raffleAwardEntity.getAwardTitle())
++                            .awardIndex(raffleAwardEntity.getSort())
++                            .build())
++                    .build();
++        } catch (AppException e) {
++            log.error("活动抽奖失败 userId:{} activityId:{}", request.getUserId(), request.getActivityId(), e);
++            return Response.<ActivityDrawResponseDTO>builder()
++                    .code(e.getCode())
++                    .info(e.getInfo())
++                    .build();
++        } catch (Exception e) {
++            log.error("活动抽奖失败 userId:{} activityId:{}", request.getUserId(), request.getActivityId(), e);
++            return Response.<ActivityDrawResponseDTO>builder()
++                    .code(ResponseCode.UN_ERROR.getCode())
++                    .info(ResponseCode.UN_ERROR.getInfo())
++                    .build();
++        }
++    }
++
++}
+diff --git a/big-market-trigger/src/main/java/cn/bugstack/trigger/http/RaffleController.java b/big-market-trigger/src/main/java/cn/bugstack/trigger/http/RaffleStrategyController.java
+similarity index 85%
+rename from big-market-trigger/src/main/java/cn/bugstack/trigger/http/RaffleController.java
+rename to big-market-trigger/src/main/java/cn/bugstack/trigger/http/RaffleStrategyController.java
+index 41b0817..6b71850 100644
+--- a/big-market-trigger/src/main/java/cn/bugstack/trigger/http/RaffleController.java
++++ b/big-market-trigger/src/main/java/cn/bugstack/trigger/http/RaffleStrategyController.java
+@@ -6,11 +6,11 @@ import cn.bugstack.domain.strategy.model.entity.StrategyAwardEntity;
+ import cn.bugstack.domain.strategy.service.IRaffleAward;
+ import cn.bugstack.domain.strategy.service.IRaffleStrategy;
+ import cn.bugstack.domain.strategy.service.armory.IStrategyArmory;
+-import cn.bugstack.trigger.api.IRaffleService;
++import cn.bugstack.trigger.api.IRaffleStrategyService;
+ import cn.bugstack.trigger.api.dto.RaffleAwardListRequestDTO;
+-import cn.bugstack.trigger.api.dto.RaffleRequestDTO;
++import cn.bugstack.trigger.api.dto.RaffleStrategyRequestDTO;
+ import cn.bugstack.trigger.api.dto.RaffleAwardListResponseDTO;
+-import cn.bugstack.trigger.api.dto.RaffleResponseDTO;
++import cn.bugstack.trigger.api.dto.RaffleStrategyResponseDTO;
+ import cn.bugstack.types.enums.ResponseCode;
+ import cn.bugstack.types.exception.AppException;
+ import cn.bugstack.types.model.Response;
+@@ -30,8 +30,8 @@ import java.util.List;
+ @Slf4j
+ @RestController()
+ @CrossOrigin("${app.config.cross-origin}")
+-@RequestMapping("/api/${app.config.api-version}/raffle/")
+-public class RaffleController implements IRaffleService {
++@RequestMapping("/api/${app.config.api-version}/raffle/strategy/")
++public class RaffleStrategyController implements IRaffleStrategyService {
+ 
+     @Resource
+     private IRaffleAward raffleAward;
+@@ -42,7 +42,7 @@ public class RaffleController implements IRaffleService {
+ 
+     /**
+      * 策略装配，将策略信息装配到缓存中
+-     * <a href="http://localhost:8091/api/v1/raffle/strategy_armory">/api/v1/raffle/strategy_armory</a>
++     * <a href="http://localhost:8091/api/v1/raffle/strategy/strategy_armory">/api/v1/raffle/strategy_armory</a>
+      *
+      * @param strategyId 策略ID
+      * @return 装配结果
+@@ -71,7 +71,7 @@ public class RaffleController implements IRaffleService {
+ 
+     /**
+      * 查询奖品列表
+-     * <a href="http://localhost:8091/api/v1/raffle/query_raffle_award_list">/api/v1/raffle/query_raffle_award_list</a>
++     * <a href="http://localhost:8091/api/v1/raffle/strategy/query_raffle_award_list">/api/v1/raffle/query_raffle_award_list</a>
+      * 请求参数 raw json
+      *
+      * @param requestDTO {"strategyId":1000001}
+@@ -112,14 +112,14 @@ public class RaffleController implements IRaffleService {
+ 
+     /**
+      * 随机抽奖接口
+-     * <a href="http://localhost:8091/api/v1/raffle/random_raffle">/api/v1/raffle/random_raffle</a>
++     * <a href="http://localhost:8091/api/v1/raffle/strategy/random_raffle">/api/v1/raffle/random_raffle</a>
+      *
+      * @param requestDTO 请求参数 {"strategyId":1000001}
+      * @return 抽奖结果
+      */
+     @RequestMapping(value = "random_raffle", method = RequestMethod.POST)
+     @Override
+-    public Response<RaffleResponseDTO> randomRaffle(@RequestBody RaffleRequestDTO requestDTO) {
++    public Response<RaffleStrategyResponseDTO> randomRaffle(@RequestBody RaffleStrategyRequestDTO requestDTO) {
+         try {
+             log.info("随机抽奖开始 strategyId: {}", requestDTO.getStrategyId());
+             // 调用抽奖接口
+@@ -128,10 +128,10 @@ public class RaffleController implements IRaffleService {
+                     .strategyId(requestDTO.getStrategyId())
+                     .build());
+             // 封装返回结果
+-            Response<RaffleResponseDTO> response = Response.<RaffleResponseDTO>builder()
++            Response<RaffleStrategyResponseDTO> response = Response.<RaffleStrategyResponseDTO>builder()
+                     .code(ResponseCode.SUCCESS.getCode())
+                     .info(ResponseCode.SUCCESS.getInfo())
+-                    .data(RaffleResponseDTO.builder()
++                    .data(RaffleStrategyResponseDTO.builder()
+                             .awardId(raffleAwardEntity.getAwardId())
+                             .awardIndex(raffleAwardEntity.getSort())
+                             .build())
+@@ -140,13 +140,13 @@ public class RaffleController implements IRaffleService {
+             return response;
+         } catch (AppException e) {
+             log.error("随机抽奖失败 strategyId：{} {}", requestDTO.getStrategyId(), e.getInfo());
+-            return Response.<RaffleResponseDTO>builder()
++            return Response.<RaffleStrategyResponseDTO>builder()
+                     .code(e.getCode())
+                     .info(e.getInfo())
+                     .build();
+         } catch (Exception e) {
+             log.error("随机抽奖失败 strategyId：{}", requestDTO.getStrategyId(), e);
+-            return Response.<RaffleResponseDTO>builder()
++            return Response.<RaffleStrategyResponseDTO>builder()
+                     .code(ResponseCode.UN_ERROR.getCode())
+                     .info(ResponseCode.UN_ERROR.getInfo())
+                     .build();
+diff --git a/big-market-types/src/main/java/cn/bugstack/types/enums/ResponseCode.java b/big-market-types/src/main/java/cn/bugstack/types/enums/ResponseCode.java
+index f687b6d..0b389dd 100644
+--- a/big-market-types/src/main/java/cn/bugstack/types/enums/ResponseCode.java
++++ b/big-market-types/src/main/java/cn/bugstack/types/enums/ResponseCode.java
+@@ -21,6 +21,7 @@ public enum ResponseCode {
+     ACCOUNT_QUOTA_ERROR("ERR_BIZ_006","账户总额度不足"),
+     ACCOUNT_MONTH_QUOTA_ERROR("ERR_BIZ_007","账户月额度不足"),
+     ACCOUNT_DAY_QUOTA_ERROR("ERR_BIZ_008","账户日额度不足"),
++    ACTIVITY_ORDER_ERROR("ERR_BIZ_009", "用户抽奖单已使用过，不可重复抽奖"),
+     ;
+ 
+     private String code;
+diff --git a/docs/dev-ops/mysql/sql/big_market.sql b/docs/dev-ops/mysql/sql/big_market.sql
+index 26b5168..fdc7c36 100644
+--- a/docs/dev-ops/mysql/sql/big_market.sql
++++ b/docs/dev-ops/mysql/sql/big_market.sql
+@@ -7,7 +7,7 @@
+ #
+ # 主机: 127.0.0.1 (MySQL 5.6.39)
+ # 数据库: big_market
+-# 生成时间: 2024-04-06 08:42:11 +0000
++# 生成时间: 2024-04-13 07:28:08 +0000
+ # ************************************************************
+ 
+ 
+@@ -76,6 +76,7 @@ CREATE TABLE `raffle_activity` (
+   `update_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+   PRIMARY KEY (`id`),
+   UNIQUE KEY `uq_activity_id` (`activity_id`),
++  UNIQUE KEY `uq_strategy_id` (`strategy_id`),
+   KEY `idx_begin_date_time` (`begin_date_time`),
+   KEY `idx_end_date_time` (`end_date_time`)
+ ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='抽奖活动表';
+@@ -327,14 +328,14 @@ VALUES
+ 	(19,100005,103,'随机积分',NULL,80000,80000,0.0300,'tree_luck_award',1,'2023-12-09 09:38:31','2024-02-15 07:42:50'),
+ 	(20,100005,104,'随机积分',NULL,80000,80000,0.0300,'tree_luck_award',1,'2023-12-09 09:38:31','2024-02-15 07:42:51'),
+ 	(21,100005,105,'随机积分',NULL,80000,80000,0.0010,'tree_luck_award',1,'2023-12-09 09:38:31','2024-02-15 07:42:52'),
+-	(22,100006,101,'随机积分',NULL,100,64,0.0200,'tree_luck_award',1,'2023-12-09 09:38:31','2024-02-29 08:06:30'),
+-	(23,100006,102,'7等奖',NULL,100,28,0.0300,'tree_luck_award',2,'2023-12-09 09:38:31','2024-02-25 21:52:35'),
+-	(24,100006,103,'6等奖',NULL,100,48,0.0300,'tree_luck_award',3,'2023-12-09 09:38:31','2024-02-15 15:38:15'),
+-	(25,100006,104,'5等奖',NULL,100,45,0.0300,'tree_luck_award',4,'2023-12-09 09:38:31','2024-02-15 15:38:35'),
+-	(26,100006,105,'4等奖',NULL,100,41,0.0300,'tree_luck_award',5,'2023-12-09 09:38:31','2024-02-16 08:46:00'),
+-	(27,100006,106,'3等奖','抽奖1次后解锁',100,31,0.0300,'tree_lock_1',6,'2023-12-09 09:38:31','2024-02-29 08:06:25'),
+-	(28,100006,107,'2等奖','抽奖1次后解锁',100,29,0.0300,'tree_lock_1',7,'2023-12-09 09:38:31','2024-02-29 08:06:20'),
+-	(29,100006,108,'1等奖','抽奖2次后解锁',100,35,0.0300,'tree_lock_2',8,'2023-12-09 09:38:31','2024-02-29 08:06:35');
++	(22,100006,101,'随机积分',NULL,100,62,0.0200,'tree_luck_award',1,'2023-12-09 09:38:31','2024-04-13 15:25:21'),
++	(23,100006,102,'7等奖',NULL,100,21,0.0300,'tree_luck_award',2,'2023-12-09 09:38:31','2024-04-13 15:25:18'),
++	(24,100006,103,'6等奖',NULL,100,44,0.0300,'tree_luck_award',3,'2023-12-09 09:38:31','2024-04-13 12:18:32'),
++	(25,100006,104,'5等奖',NULL,100,39,0.0300,'tree_luck_award',4,'2023-12-09 09:38:31','2024-04-13 15:25:10'),
++	(26,100006,105,'4等奖',NULL,100,39,0.0300,'tree_luck_award',5,'2023-12-09 09:38:31','2024-04-13 12:20:30'),
++	(27,100006,106,'3等奖','抽奖1次后解锁',100,28,0.0300,'tree_lock_1',6,'2023-12-09 09:38:31','2024-04-13 12:20:40'),
++	(28,100006,107,'2等奖','抽奖1次后解锁',100,26,0.0300,'tree_lock_1',7,'2023-12-09 09:38:31','2024-04-13 15:25:25'),
++	(29,100006,108,'1等奖','抽奖2次后解锁',100,34,0.0300,'tree_lock_2',8,'2023-12-09 09:38:31','2024-04-13 11:42:40');
+ 
+ /*!40000 ALTER TABLE `strategy_award` ENABLE KEYS */;
+ UNLOCK TABLES;
+diff --git a/docs/dev-ops/mysql/sql/big_market_01.sql b/docs/dev-ops/mysql/sql/big_market_01.sql
+index f82217b..0e71112 100644
+--- a/docs/dev-ops/mysql/sql/big_market_01.sql
++++ b/docs/dev-ops/mysql/sql/big_market_01.sql
+@@ -7,7 +7,7 @@
+ #
+ # 主机: 127.0.0.1 (MySQL 5.6.39)
+ # 数据库: big_market_01
+-# 生成时间: 2024-04-06 08:41:52 +0000
++# 生成时间: 2024-04-13 07:28:17 +0000
+ # ************************************************************
+ 
+ 
+@@ -48,7 +48,7 @@ LOCK TABLES `raffle_activity_account` WRITE;
+ 
+ INSERT INTO `raffle_activity_account` (`id`, `user_id`, `activity_id`, `total_count`, `total_count_surplus`, `day_count`, `day_count_surplus`, `month_count`, `month_count_surplus`, `create_time`, `update_time`)
+ VALUES
+-	(3,'xiaofuge',100301,45,44,45,45,45,45,'2024-03-23 16:38:57','2024-04-05 17:10:31');
++	(3,'xiaofuge',100301,45,17,45,18,45,18,'2024-03-23 16:38:57','2024-04-13 15:25:13');
+ 
+ /*!40000 ALTER TABLE `raffle_activity_account` ENABLE KEYS */;
+ UNLOCK TABLES;
+@@ -77,7 +77,9 @@ LOCK TABLES `raffle_activity_account_day` WRITE;
+ 
+ INSERT INTO `raffle_activity_account_day` (`id`, `user_id`, `activity_id`, `day`, `day_count`, `day_count_surplus`, `create_time`, `update_time`)
+ VALUES
+-	(2,'xiaofuge',100301,'2024-04-05',45,44,'2024-04-05 17:10:31','2024-04-05 17:10:31');
++	(2,'xiaofuge',100301,'2024-04-05',45,44,'2024-04-05 17:10:31','2024-04-05 17:10:31'),
++	(3,'xiaofuge',100301,'2024-04-08',45,44,'2024-04-08 22:52:47','2024-04-08 22:52:47'),
++	(4,'xiaofuge',100301,'2024-04-13',45,23,'2024-04-13 11:44:10','2024-04-13 15:25:13');
+ 
+ /*!40000 ALTER TABLE `raffle_activity_account_day` ENABLE KEYS */;
+ UNLOCK TABLES;
+@@ -106,7 +108,7 @@ LOCK TABLES `raffle_activity_account_month` WRITE;
+ 
+ INSERT INTO `raffle_activity_account_month` (`id`, `user_id`, `activity_id`, `month`, `month_count`, `month_count_surplus`, `create_time`, `update_time`)
+ VALUES
+-	(5,'xiaofuge',100301,'2024-04',45,44,'2024-04-05 17:10:31','2024-04-05 17:10:31');
++	(5,'xiaofuge',100301,'2024-04',45,17,'2024-04-05 17:10:31','2024-04-13 15:25:13');
+ 
+ /*!40000 ALTER TABLE `raffle_activity_account_month` ENABLE KEYS */;
+ UNLOCK TABLES;
+@@ -339,8 +341,35 @@ VALUES
+ 	(31,'xiaofuge','send_award','09679212052','{\"data\":{\"awardId\":101,\"awardTitle\":\"OpenAI 增加使用次数\",\"userId\":\"xiaofuge\"},\"id\":\"09679212052\",\"timestamp\":1712391044938}','completed','2024-04-06 16:10:44','2024-04-06 16:10:44'),
+ 	(32,'xiaofuge','send_award','96862889309','{\"data\":{\"awardId\":101,\"awardTitle\":\"OpenAI 增加使用次数\",\"userId\":\"xiaofuge\"},\"id\":\"96862889309\",\"timestamp\":1712391045450}','completed','2024-04-06 16:10:45','2024-04-06 16:10:45'),
+ 	(33,'xiaofuge','send_award','69912628282','{\"data\":{\"awardId\":101,\"awardTitle\":\"OpenAI 增加使用次数\",\"userId\":\"xiaofuge\"},\"id\":\"69912628282\",\"timestamp\":1712391045962}','completed','2024-04-06 16:10:45','2024-04-06 16:10:45'),
+-	(34,'xiaofuge','send_award','26021447219','{\"data\":{\"awardId\":101,\"awardTitle\":\"OpenAI 增加使用次数\",\"userId\":\"xiaofuge\"},\"id\":\"26021447219\",\"timestamp\":1712391046477}','create','2024-04-06 16:10:46','2024-04-06 16:41:41'),
+-	(35,'xiaofuge','send_award','29510804265','{\"data\":{\"awardId\":101,\"awardTitle\":\"OpenAI 增加使用次数\",\"userId\":\"xiaofuge\"},\"id\":\"29510804265\",\"timestamp\":1712391047005}','fail','2024-04-06 16:10:47','2024-04-06 16:10:47');
++	(34,'xiaofuge','send_award','26021447219','{\"data\":{\"awardId\":101,\"awardTitle\":\"OpenAI 增加使用次数\",\"userId\":\"xiaofuge\"},\"id\":\"26021447219\",\"timestamp\":1712391046477}','completed','2024-04-06 16:10:46','2024-04-13 10:48:45'),
++	(35,'xiaofuge','send_award','29510804265','{\"data\":{\"awardId\":101,\"awardTitle\":\"OpenAI 增加使用次数\",\"userId\":\"xiaofuge\"},\"id\":\"29510804265\",\"timestamp\":1712391047005}','completed','2024-04-06 16:10:47','2024-04-13 10:48:45'),
++	(36,'xiaofuge','send_award','99669876677','{\"data\":{\"awardId\":107,\"awardTitle\":\"2等奖\",\"userId\":\"xiaofuge\"},\"id\":\"99669876677\",\"timestamp\":1712979841591}','completed','2024-04-13 11:44:01','2024-04-13 11:44:01'),
++	(37,'xiaofuge','send_award','13183725005','{\"data\":{\"awardId\":103,\"awardTitle\":\"6等奖\",\"userId\":\"xiaofuge\"},\"id\":\"13183725005\",\"timestamp\":1712979850853}','completed','2024-04-13 11:44:10','2024-04-13 11:44:10'),
++	(38,'xiaofuge','send_award','13436201468','{\"data\":{\"awardId\":101,\"awardTitle\":\"随机积分\",\"userId\":\"xiaofuge\"},\"id\":\"13436201468\",\"timestamp\":1712979854073}','completed','2024-04-13 11:44:14','2024-04-13 11:44:14'),
++	(39,'xiaofuge','send_award','89567645271','{\"data\":{\"awardId\":106,\"awardTitle\":\"3等奖\",\"userId\":\"xiaofuge\"},\"id\":\"89567645271\",\"timestamp\":1712979855601}','completed','2024-04-13 11:44:15','2024-04-13 11:44:15'),
++	(40,'xiaofuge','send_award','00308200403','{\"data\":{\"awardId\":106,\"awardTitle\":\"3等奖\",\"userId\":\"xiaofuge\"},\"id\":\"00308200403\",\"timestamp\":1712979856602}','completed','2024-04-13 11:44:16','2024-04-13 11:44:16'),
++	(41,'xiaofuge','send_award','70460061560','{\"data\":{\"awardId\":104,\"awardTitle\":\"5等奖\",\"userId\":\"xiaofuge\"},\"id\":\"70460061560\",\"timestamp\":1712979857586}','completed','2024-04-13 11:44:17','2024-04-13 11:44:17'),
++	(42,'xiaofuge','send_award','03493035635','{\"data\":{\"awardId\":102,\"awardTitle\":\"7等奖\",\"userId\":\"xiaofuge\"},\"id\":\"03493035635\",\"timestamp\":1712979858714}','completed','2024-04-13 11:44:18','2024-04-13 11:44:18'),
++	(43,'xiaofuge','send_award','22062172114','{\"data\":{\"awardId\":103,\"awardTitle\":\"6等奖\",\"userId\":\"xiaofuge\"},\"id\":\"22062172114\",\"timestamp\":1712979929672}','completed','2024-04-13 11:45:29','2024-04-13 11:45:29'),
++	(44,'xiaofuge','send_award','75973092346','{\"data\":{\"awardId\":102,\"awardTitle\":\"7等奖\",\"userId\":\"xiaofuge\"},\"id\":\"75973092346\",\"timestamp\":1712979930723}','completed','2024-04-13 11:45:30','2024-04-13 11:45:30'),
++	(45,'xiaofuge','send_award','32769685487','{\"data\":{\"awardId\":102,\"awardTitle\":\"7等奖\",\"userId\":\"xiaofuge\"},\"id\":\"32769685487\",\"timestamp\":1712981693149}','completed','2024-04-13 12:14:53','2024-04-13 12:14:53'),
++	(46,'xiaofuge','send_award','85144595338','{\"data\":{\"awardId\":104,\"awardTitle\":\"5等奖\",\"userId\":\"xiaofuge\"},\"id\":\"85144595338\",\"timestamp\":1712981853669}','completed','2024-04-13 12:17:33','2024-04-13 12:17:33'),
++	(47,'xiaofuge','send_award','44874364790','{\"data\":{\"awardId\":103,\"awardTitle\":\"6等奖\",\"userId\":\"xiaofuge\"},\"id\":\"44874364790\",\"timestamp\":1712981896942}','completed','2024-04-13 12:18:16','2024-04-13 12:18:16'),
++	(48,'xiaofuge','send_award','85399883630','{\"data\":{\"awardId\":103,\"awardTitle\":\"6等奖\",\"userId\":\"xiaofuge\"},\"id\":\"85399883630\",\"timestamp\":1712981903339}','completed','2024-04-13 12:18:23','2024-04-13 12:18:23'),
++	(49,'xiaofuge','send_award','29729581514','{\"data\":{\"awardId\":104,\"awardTitle\":\"5等奖\",\"userId\":\"xiaofuge\"},\"id\":\"29729581514\",\"timestamp\":1712981904841}','completed','2024-04-13 12:18:24','2024-04-13 12:18:24'),
++	(50,'xiaofuge','send_award','74718298956','{\"data\":{\"awardId\":105,\"awardTitle\":\"4等奖\",\"userId\":\"xiaofuge\"},\"id\":\"74718298956\",\"timestamp\":1712981905797}','completed','2024-04-13 12:18:25','2024-04-13 12:18:25'),
++	(51,'xiaofuge','send_award','50114477022','{\"data\":{\"awardId\":107,\"awardTitle\":\"2等奖\",\"userId\":\"xiaofuge\"},\"id\":\"50114477022\",\"timestamp\":1712981916880}','completed','2024-04-13 12:18:36','2024-04-13 12:18:36'),
++	(52,'xiaofuge','send_award','28956245329','{\"data\":{\"awardId\":102,\"awardTitle\":\"7等奖\",\"userId\":\"xiaofuge\"},\"id\":\"28956245329\",\"timestamp\":1712982007542}','completed','2024-04-13 12:20:07','2024-04-13 12:20:07'),
++	(53,'xiaofuge','send_award','99592907656','{\"data\":{\"awardId\":104,\"awardTitle\":\"5等奖\",\"userId\":\"xiaofuge\"},\"id\":\"99592907656\",\"timestamp\":1712982009729}','completed','2024-04-13 12:20:09','2024-04-13 12:20:09'),
++	(54,'xiaofuge','send_award','19525539782','{\"data\":{\"awardId\":104,\"awardTitle\":\"5等奖\",\"userId\":\"xiaofuge\"},\"id\":\"19525539782\",\"timestamp\":1712982013711}','completed','2024-04-13 12:20:13','2024-04-13 12:20:13'),
++	(55,'xiaofuge','send_award','47878047199','{\"data\":{\"awardId\":105,\"awardTitle\":\"4等奖\",\"userId\":\"xiaofuge\"},\"id\":\"47878047199\",\"timestamp\":1712982014913}','completed','2024-04-13 12:20:14','2024-04-13 12:20:14'),
++	(56,'xiaofuge','send_award','27264311844','{\"data\":{\"awardId\":102,\"awardTitle\":\"7等奖\",\"userId\":\"xiaofuge\"},\"id\":\"27264311844\",\"timestamp\":1712982016134}','completed','2024-04-13 12:20:16','2024-04-13 12:20:16'),
++	(57,'xiaofuge','send_award','77749836320','{\"data\":{\"awardId\":106,\"awardTitle\":\"3等奖\",\"userId\":\"xiaofuge\"},\"id\":\"77749836320\",\"timestamp\":1712982020673}','completed','2024-04-13 12:20:20','2024-04-13 12:20:20'),
++	(58,'xiaofuge','send_award','47587820823','{\"data\":{\"awardId\":102,\"awardTitle\":\"7等奖\",\"userId\":\"xiaofuge\"},\"id\":\"47587820823\",\"timestamp\":1712988239372}','completed','2024-04-13 14:03:59','2024-04-13 14:03:59'),
++	(59,'xiaofuge','send_award','58931754976','{\"data\":{\"awardId\":104,\"awardTitle\":\"5等奖\",\"userId\":\"xiaofuge\"},\"id\":\"58931754976\",\"timestamp\":1712993105696}','completed','2024-04-13 15:25:06','2024-04-13 15:25:06'),
++	(60,'xiaofuge','send_award','67608143436','{\"data\":{\"awardId\":102,\"awardTitle\":\"7等奖\",\"userId\":\"xiaofuge\"},\"id\":\"67608143436\",\"timestamp\":1712993111209}','completed','2024-04-13 15:25:11','2024-04-13 15:25:11'),
++	(61,'xiaofuge','send_award','22711974997','{\"data\":{\"awardId\":101,\"awardTitle\":\"随机积分\",\"userId\":\"xiaofuge\"},\"id\":\"22711974997\",\"timestamp\":1712993112288}','completed','2024-04-13 15:25:12','2024-04-13 15:25:12'),
++	(62,'xiaofuge','send_award','39728508373','{\"data\":{\"awardId\":107,\"awardTitle\":\"2等奖\",\"userId\":\"xiaofuge\"},\"id\":\"39728508373\",\"timestamp\":1712993121051}','completed','2024-04-13 15:25:21','2024-04-13 15:25:21');
+ 
+ /*!40000 ALTER TABLE `task` ENABLE KEYS */;
+ UNLOCK TABLES;
+@@ -435,7 +464,34 @@ VALUES
+ 	(35,'xiaofuge',100301,100006,'565064446034',101,'OpenAI 增加使用次数','2024-04-06 08:10:45','create','2024-04-06 16:10:45','2024-04-06 16:10:45'),
+ 	(36,'xiaofuge',100301,100006,'665449773785',101,'OpenAI 增加使用次数','2024-04-06 08:10:46','create','2024-04-06 16:10:45','2024-04-06 16:10:45'),
+ 	(37,'xiaofuge',100301,100006,'099294776536',101,'OpenAI 增加使用次数','2024-04-06 08:10:46','create','2024-04-06 16:10:46','2024-04-06 16:10:46'),
+-	(38,'xiaofuge',100301,100006,'166766849249',101,'OpenAI 增加使用次数','2024-04-06 08:10:47','create','2024-04-06 16:10:47','2024-04-06 16:10:47');
++	(38,'xiaofuge',100301,100006,'166766849249',101,'OpenAI 增加使用次数','2024-04-06 08:10:47','create','2024-04-06 16:10:47','2024-04-06 16:10:47'),
++	(39,'xiaofuge',100301,100006,'569856975978',107,'2等奖','2024-04-13 03:44:02','create','2024-04-13 11:44:01','2024-04-13 11:44:01'),
++	(40,'xiaofuge',100301,100006,'867136698684',103,'6等奖','2024-04-13 03:44:11','create','2024-04-13 11:44:10','2024-04-13 11:44:10'),
++	(41,'xiaofuge',100301,100006,'250425115608',101,'随机积分','2024-04-13 03:44:14','create','2024-04-13 11:44:14','2024-04-13 11:44:14'),
++	(42,'xiaofuge',100301,100006,'663910993767',106,'3等奖','2024-04-13 03:44:16','create','2024-04-13 11:44:15','2024-04-13 11:44:15'),
++	(43,'xiaofuge',100301,100006,'218374542905',106,'3等奖','2024-04-13 03:44:17','create','2024-04-13 11:44:16','2024-04-13 11:44:16'),
++	(44,'xiaofuge',100301,100006,'225714694474',104,'5等奖','2024-04-13 03:44:18','create','2024-04-13 11:44:17','2024-04-13 11:44:17'),
++	(45,'xiaofuge',100301,100006,'431167372778',102,'7等奖','2024-04-13 03:44:19','create','2024-04-13 11:44:18','2024-04-13 11:44:18'),
++	(46,'xiaofuge',100301,100006,'434079846497',103,'6等奖','2024-04-13 03:45:30','create','2024-04-13 11:45:29','2024-04-13 11:45:29'),
++	(47,'xiaofuge',100301,100006,'965685676429',102,'7等奖','2024-04-13 03:45:31','create','2024-04-13 11:45:30','2024-04-13 11:45:30'),
++	(48,'xiaofuge',100301,100006,'940273728363',102,'7等奖','2024-04-13 04:14:53','create','2024-04-13 12:14:53','2024-04-13 12:14:53'),
++	(49,'xiaofuge',100301,100006,'240699246294',104,'5等奖','2024-04-13 04:17:34','create','2024-04-13 12:17:33','2024-04-13 12:17:33'),
++	(50,'xiaofuge',100301,100006,'298101180210',103,'6等奖','2024-04-13 04:18:17','create','2024-04-13 12:18:16','2024-04-13 12:18:16'),
++	(51,'xiaofuge',100301,100006,'565655944488',103,'6等奖','2024-04-13 04:18:23','create','2024-04-13 12:18:23','2024-04-13 12:18:23'),
++	(52,'xiaofuge',100301,100006,'090289257534',104,'5等奖','2024-04-13 04:18:25','create','2024-04-13 12:18:24','2024-04-13 12:18:24'),
++	(53,'xiaofuge',100301,100006,'668356046426',105,'4等奖','2024-04-13 04:18:26','create','2024-04-13 12:18:25','2024-04-13 12:18:25'),
++	(54,'xiaofuge',100301,100006,'745680068300',107,'2等奖','2024-04-13 04:18:37','create','2024-04-13 12:18:36','2024-04-13 12:18:36'),
++	(55,'xiaofuge',100301,100006,'285300597983',102,'7等奖','2024-04-13 04:20:08','create','2024-04-13 12:20:07','2024-04-13 12:20:07'),
++	(56,'xiaofuge',100301,100006,'999361306023',104,'5等奖','2024-04-13 04:20:10','create','2024-04-13 12:20:09','2024-04-13 12:20:09'),
++	(57,'xiaofuge',100301,100006,'063682699381',104,'5等奖','2024-04-13 04:20:14','create','2024-04-13 12:20:13','2024-04-13 12:20:13'),
++	(58,'xiaofuge',100301,100006,'680488311338',105,'4等奖','2024-04-13 04:20:15','create','2024-04-13 12:20:14','2024-04-13 12:20:14'),
++	(59,'xiaofuge',100301,100006,'399058527457',102,'7等奖','2024-04-13 04:20:16','create','2024-04-13 12:20:16','2024-04-13 12:20:16'),
++	(60,'xiaofuge',100301,100006,'579122416749',106,'3等奖','2024-04-13 04:20:21','create','2024-04-13 12:20:20','2024-04-13 12:20:20'),
++	(61,'xiaofuge',100301,100006,'854484054432',102,'7等奖','2024-04-13 06:03:59','create','2024-04-13 14:03:59','2024-04-13 14:03:59'),
++	(62,'xiaofuge',100301,100006,'066823147917',104,'5等奖','2024-04-13 07:25:06','create','2024-04-13 15:25:06','2024-04-13 15:25:06'),
++	(63,'xiaofuge',100301,100006,'022620846137',102,'7等奖','2024-04-13 07:25:11','create','2024-04-13 15:25:11','2024-04-13 15:25:11'),
++	(64,'xiaofuge',100301,100006,'605666354632',101,'随机积分','2024-04-13 07:25:12','create','2024-04-13 15:25:12','2024-04-13 15:25:12'),
++	(65,'xiaofuge',100301,100006,'604661560037',107,'2等奖','2024-04-13 07:25:21','create','2024-04-13 15:25:21','2024-04-13 15:25:21');
+ 
+ /*!40000 ALTER TABLE `user_award_record_001` ENABLE KEYS */;
+ UNLOCK TABLES;
+@@ -542,7 +598,33 @@ LOCK TABLES `user_raffle_order_001` WRITE;
+ 
+ INSERT INTO `user_raffle_order_001` (`id`, `user_id`, `activity_id`, `activity_name`, `strategy_id`, `order_id`, `order_time`, `order_state`, `create_time`, `update_time`)
+ VALUES
+-	(4,'xiaofuge',100301,'测试活动',100006,'313091076458','2024-04-05 09:10:31','create','2024-04-05 17:10:31','2024-04-05 17:10:31');
++	(5,'xiaofuge',100301,'测试活动',100006,'569856975978','2024-04-08 14:52:47','used','2024-04-08 22:52:47','2024-04-13 11:44:01'),
++	(6,'xiaofuge',100301,'测试活动',100006,'867136698684','2024-04-13 03:44:07','used','2024-04-13 11:44:10','2024-04-13 11:44:10'),
++	(7,'xiaofuge',100301,'测试活动',100006,'250425115608','2024-04-13 03:44:14','used','2024-04-13 11:44:14','2024-04-13 11:44:14'),
++	(8,'xiaofuge',100301,'测试活动',100006,'663910993767','2024-04-13 03:44:16','used','2024-04-13 11:44:15','2024-04-13 11:44:15'),
++	(9,'xiaofuge',100301,'测试活动',100006,'218374542905','2024-04-13 03:44:17','used','2024-04-13 11:44:16','2024-04-13 11:44:16'),
++	(10,'xiaofuge',100301,'测试活动',100006,'225714694474','2024-04-13 03:44:18','used','2024-04-13 11:44:17','2024-04-13 11:44:17'),
++	(11,'xiaofuge',100301,'测试活动',100006,'431167372778','2024-04-13 03:44:19','used','2024-04-13 11:44:18','2024-04-13 11:44:18'),
++	(12,'xiaofuge',100301,'测试活动',100006,'434079846497','2024-04-13 03:45:30','used','2024-04-13 11:45:29','2024-04-13 11:45:29'),
++	(13,'xiaofuge',100301,'测试活动',100006,'965685676429','2024-04-13 03:45:31','used','2024-04-13 11:45:30','2024-04-13 11:45:30'),
++	(14,'xiaofuge',100301,'测试活动',100006,'940273728363','2024-04-13 04:14:53','used','2024-04-13 12:14:53','2024-04-13 12:14:53'),
++	(15,'xiaofuge',100301,'测试活动',100006,'240699246294','2024-04-13 04:16:20','used','2024-04-13 12:16:19','2024-04-13 12:17:33'),
++	(16,'xiaofuge',100301,'测试活动',100006,'298101180210','2024-04-13 04:18:05','used','2024-04-13 12:18:05','2024-04-13 12:18:16'),
++	(17,'xiaofuge',100301,'测试活动',100006,'565655944488','2024-04-13 04:18:23','used','2024-04-13 12:18:23','2024-04-13 12:18:23'),
++	(18,'xiaofuge',100301,'测试活动',100006,'090289257534','2024-04-13 04:18:25','used','2024-04-13 12:18:24','2024-04-13 12:18:24'),
++	(19,'xiaofuge',100301,'测试活动',100006,'668356046426','2024-04-13 04:18:26','used','2024-04-13 12:18:25','2024-04-13 12:18:25'),
++	(20,'xiaofuge',100301,'测试活动',100006,'745680068300','2024-04-13 04:18:27','used','2024-04-13 12:18:26','2024-04-13 12:18:36'),
++	(21,'xiaofuge',100301,'测试活动',100006,'285300597983','2024-04-13 04:20:07','used','2024-04-13 12:20:07','2024-04-13 12:20:07'),
++	(22,'xiaofuge',100301,'测试活动',100006,'999361306023','2024-04-13 04:20:10','used','2024-04-13 12:20:09','2024-04-13 12:20:09'),
++	(23,'xiaofuge',100301,'测试活动',100006,'063682699381','2024-04-13 04:20:14','used','2024-04-13 12:20:13','2024-04-13 12:20:13'),
++	(24,'xiaofuge',100301,'测试活动',100006,'680488311338','2024-04-13 04:20:15','used','2024-04-13 12:20:14','2024-04-13 12:20:14'),
++	(25,'xiaofuge',100301,'测试活动',100006,'399058527457','2024-04-13 04:20:16','used','2024-04-13 12:20:16','2024-04-13 12:20:16'),
++	(26,'xiaofuge',100301,'测试活动',100006,'579122416749','2024-04-13 04:20:17','used','2024-04-13 12:20:17','2024-04-13 12:20:20'),
++	(27,'xiaofuge',100301,'测试活动',100006,'854484054432','2024-04-13 06:03:59','used','2024-04-13 14:03:59','2024-04-13 14:03:59'),
++	(28,'xiaofuge',100301,'测试活动',100006,'066823147917','2024-04-13 07:24:59','used','2024-04-13 15:25:05','2024-04-13 15:25:06'),
++	(29,'xiaofuge',100301,'测试活动',100006,'022620846137','2024-04-13 07:25:11','used','2024-04-13 15:25:11','2024-04-13 15:25:11'),
++	(30,'xiaofuge',100301,'测试活动',100006,'605666354632','2024-04-13 07:25:12','used','2024-04-13 15:25:12','2024-04-13 15:25:12'),
++	(31,'xiaofuge',100301,'测试活动',100006,'604661560037','2024-04-13 07:25:13','used','2024-04-13 15:25:13','2024-04-13 15:25:21');
+ 
+ /*!40000 ALTER TABLE `user_raffle_order_001` ENABLE KEYS */;
+ UNLOCK TABLES;
+diff --git a/docs/dev-ops/mysql/sql/big_market_02.sql b/docs/dev-ops/mysql/sql/big_market_02.sql
+index 98ce982..a483ba7 100644
+--- a/docs/dev-ops/mysql/sql/big_market_02.sql
++++ b/docs/dev-ops/mysql/sql/big_market_02.sql
+@@ -7,7 +7,7 @@
+ #
+ # 主机: 127.0.0.1 (MySQL 5.6.39)
+ # 数据库: big_market_02
+-# 生成时间: 2024-04-06 08:42:00 +0000
++# 生成时间: 2024-04-13 07:28:25 +0000
+ # ************************************************************
+ 
+ 
