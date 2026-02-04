@@ -1,0 +1,923 @@
+commit 3c56b63576f8361fa4dca35712b2742653fa0771
+Author: 小傅哥 <184172133@qq.com>
+Date:   Wed Apr 3 17:38:48 2024 +0800
+
+    feat: 【营销服务】第17节：用于领取活动库表设计
+
+diff --git a/big-market-app/src/main/resources/mybatis/mapper/raffle_activity_account_day_mapper.xml b/big-market-app/src/main/resources/mybatis/mapper/raffle_activity_account_day_mapper.xml
+new file mode 100644
+index 0000000..c34a1f9
+--- /dev/null
++++ b/big-market-app/src/main/resources/mybatis/mapper/raffle_activity_account_day_mapper.xml
+@@ -0,0 +1,5 @@
++<?xml version="1.0" encoding="UTF-8"?>
++<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
++<mapper namespace="cn.bugstack.infrastructure.persistent.dao.IRaffleActivityAccountDayDao">
++
++</mapper>
+diff --git a/big-market-app/src/main/resources/mybatis/mapper/raffle_activity_account_month_mapper.xml b/big-market-app/src/main/resources/mybatis/mapper/raffle_activity_account_month_mapper.xml
+new file mode 100644
+index 0000000..a80a400
+--- /dev/null
++++ b/big-market-app/src/main/resources/mybatis/mapper/raffle_activity_account_month_mapper.xml
+@@ -0,0 +1,5 @@
++<?xml version="1.0" encoding="UTF-8"?>
++<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
++<mapper namespace="cn.bugstack.infrastructure.persistent.dao.IRaffleActivityAccountMonthDao">
++
++</mapper>
+diff --git a/big-market-app/src/main/resources/mybatis/mapper/task_mapper.xml b/big-market-app/src/main/resources/mybatis/mapper/task_mapper.xml
+new file mode 100644
+index 0000000..6003512
+--- /dev/null
++++ b/big-market-app/src/main/resources/mybatis/mapper/task_mapper.xml
+@@ -0,0 +1,5 @@
++<?xml version="1.0" encoding="UTF-8"?>
++<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
++<mapper namespace="cn.bugstack.infrastructure.persistent.dao.ITaskDao">
++
++</mapper>
+diff --git a/big-market-app/src/main/resources/mybatis/mapper/user_award_record_mapper.xml b/big-market-app/src/main/resources/mybatis/mapper/user_award_record_mapper.xml
+new file mode 100644
+index 0000000..29e7851
+--- /dev/null
++++ b/big-market-app/src/main/resources/mybatis/mapper/user_award_record_mapper.xml
+@@ -0,0 +1,5 @@
++<?xml version="1.0" encoding="UTF-8"?>
++<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
++<mapper namespace="cn.bugstack.infrastructure.persistent.dao.IUserAwardRecordDao">
++
++</mapper>
+diff --git a/big-market-app/src/main/resources/mybatis/mapper/user_raffle_order_mapper.xml b/big-market-app/src/main/resources/mybatis/mapper/user_raffle_order_mapper.xml
+new file mode 100644
+index 0000000..f6cd0c6
+--- /dev/null
++++ b/big-market-app/src/main/resources/mybatis/mapper/user_raffle_order_mapper.xml
+@@ -0,0 +1,5 @@
++<?xml version="1.0" encoding="UTF-8"?>
++<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
++<mapper namespace="cn.bugstack.infrastructure.persistent.dao.IUserRaffleOrderDao">
++
++</mapper>
+diff --git a/big-market-infrastructure/src/main/java/cn/bugstack/infrastructure/persistent/dao/IRaffleActivityAccountDayDao.java b/big-market-infrastructure/src/main/java/cn/bugstack/infrastructure/persistent/dao/IRaffleActivityAccountDayDao.java
+new file mode 100644
+index 0000000..0a1d6b6
+--- /dev/null
++++ b/big-market-infrastructure/src/main/java/cn/bugstack/infrastructure/persistent/dao/IRaffleActivityAccountDayDao.java
+@@ -0,0 +1,9 @@
++package cn.bugstack.infrastructure.persistent.dao;
++
++/**
++ * @author Fuzhengwei bugstack.cn @小傅哥
++ * @description 抽奖活动账户表-日次数
++ * @create 2024-04-03 15:56
++ */
++public interface IRaffleActivityAccountDayDao {
++}
+diff --git a/big-market-infrastructure/src/main/java/cn/bugstack/infrastructure/persistent/dao/IRaffleActivityAccountMonthDao.java b/big-market-infrastructure/src/main/java/cn/bugstack/infrastructure/persistent/dao/IRaffleActivityAccountMonthDao.java
+new file mode 100644
+index 0000000..c7d9ccb
+--- /dev/null
++++ b/big-market-infrastructure/src/main/java/cn/bugstack/infrastructure/persistent/dao/IRaffleActivityAccountMonthDao.java
+@@ -0,0 +1,9 @@
++package cn.bugstack.infrastructure.persistent.dao;
++
++/**
++ * @author Fuzhengwei bugstack.cn @小傅哥
++ * @description 抽奖活动账户表-月次数
++ * @create 2024-04-03 15:57
++ */
++public interface IRaffleActivityAccountMonthDao {
++}
+diff --git a/big-market-infrastructure/src/main/java/cn/bugstack/infrastructure/persistent/dao/ITaskDao.java b/big-market-infrastructure/src/main/java/cn/bugstack/infrastructure/persistent/dao/ITaskDao.java
+new file mode 100644
+index 0000000..355fc49
+--- /dev/null
++++ b/big-market-infrastructure/src/main/java/cn/bugstack/infrastructure/persistent/dao/ITaskDao.java
+@@ -0,0 +1,9 @@
++package cn.bugstack.infrastructure.persistent.dao;
++
++/**
++ * @author Fuzhengwei bugstack.cn @小傅哥
++ * @description 任务表，发送MQ
++ * @create 2024-04-03 15:57
++ */
++public interface ITaskDao {
++}
+diff --git a/big-market-infrastructure/src/main/java/cn/bugstack/infrastructure/persistent/dao/IUserAwardRecordDao.java b/big-market-infrastructure/src/main/java/cn/bugstack/infrastructure/persistent/dao/IUserAwardRecordDao.java
+new file mode 100644
+index 0000000..a9a951d
+--- /dev/null
++++ b/big-market-infrastructure/src/main/java/cn/bugstack/infrastructure/persistent/dao/IUserAwardRecordDao.java
+@@ -0,0 +1,9 @@
++package cn.bugstack.infrastructure.persistent.dao;
++
++/**
++ * @author Fuzhengwei bugstack.cn @小傅哥
++ * @description 用户中奖记录表
++ * @create 2024-04-03 15:57
++ */
++public interface IUserAwardRecordDao {
++}
+diff --git a/big-market-infrastructure/src/main/java/cn/bugstack/infrastructure/persistent/dao/IUserRaffleOrderDao.java b/big-market-infrastructure/src/main/java/cn/bugstack/infrastructure/persistent/dao/IUserRaffleOrderDao.java
+new file mode 100644
+index 0000000..18ddd35
+--- /dev/null
++++ b/big-market-infrastructure/src/main/java/cn/bugstack/infrastructure/persistent/dao/IUserRaffleOrderDao.java
+@@ -0,0 +1,9 @@
++package cn.bugstack.infrastructure.persistent.dao;
++
++/**
++ * @author Fuzhengwei bugstack.cn @小傅哥
++ * @description 用户抽奖订单表
++ * @create 2024-04-03 15:57
++ */
++public interface IUserRaffleOrderDao {
++}
+diff --git a/big-market-infrastructure/src/main/java/cn/bugstack/infrastructure/persistent/po/RaffleActivityAccountDay.java b/big-market-infrastructure/src/main/java/cn/bugstack/infrastructure/persistent/po/RaffleActivityAccountDay.java
+new file mode 100644
+index 0000000..72cc3a4
+--- /dev/null
++++ b/big-market-infrastructure/src/main/java/cn/bugstack/infrastructure/persistent/po/RaffleActivityAccountDay.java
+@@ -0,0 +1,32 @@
++package cn.bugstack.infrastructure.persistent.po;
++
++import lombok.Data;
++
++import java.util.Date;
++
++/**
++ * @author Fuzhengwei bugstack.cn @小傅哥
++ * @description 抽奖活动账户表-日次数
++ * @create 2024-04-03 15:28
++ */
++@Data
++public class RaffleActivityAccountDay {
++
++    /** 自增ID */
++    private String id;
++    /** 用户ID */
++    private String userId;
++    /** 活动ID */
++    private Long activityId;
++    /** 日期（yyyy-mm-dd） */
++    private String day;
++    /** 日次数 */
++    private Integer dayCount;
++    /** 日次数-剩余 */
++    private Integer dayCountSurplus;
++    /** 创建时间 */
++    private Date createTime;
++    /** 更新时间 */
++    private Date updateTime;
++
++}
+diff --git a/big-market-infrastructure/src/main/java/cn/bugstack/infrastructure/persistent/po/RaffleActivityAccountMonth.java b/big-market-infrastructure/src/main/java/cn/bugstack/infrastructure/persistent/po/RaffleActivityAccountMonth.java
+new file mode 100644
+index 0000000..bc41078
+--- /dev/null
++++ b/big-market-infrastructure/src/main/java/cn/bugstack/infrastructure/persistent/po/RaffleActivityAccountMonth.java
+@@ -0,0 +1,32 @@
++package cn.bugstack.infrastructure.persistent.po;
++
++import lombok.Data;
++
++import java.util.Date;
++
++/**
++ * @author Fuzhengwei bugstack.cn @小傅哥
++ * @description 抽奖活动账户表-月次数
++ * @create 2024-04-03 15:28
++ */
++@Data
++public class RaffleActivityAccountMonth {
++
++    /** 自增ID */
++    private String id;
++    /** 用户ID */
++    private String userId;
++    /** 活动ID */
++    private Long activityId;
++    /** 月（yyyy-mm） */
++    private String month;
++    /** 月次数 */
++    private Integer monthCount;
++    /** 月次数-剩余 */
++    private Integer monthCountSurplus;
++    /** 创建时间 */
++    private Date createTime;
++    /** 更新时间 */
++    private Date updateTime;
++
++}
+diff --git a/big-market-infrastructure/src/main/java/cn/bugstack/infrastructure/persistent/po/Task.java b/big-market-infrastructure/src/main/java/cn/bugstack/infrastructure/persistent/po/Task.java
+new file mode 100644
+index 0000000..c900170
+--- /dev/null
++++ b/big-market-infrastructure/src/main/java/cn/bugstack/infrastructure/persistent/po/Task.java
+@@ -0,0 +1,28 @@
++package cn.bugstack.infrastructure.persistent.po;
++
++import lombok.Data;
++
++import java.util.Date;
++
++/**
++ * @author Fuzhengwei bugstack.cn @小傅哥
++ * @description 任务表，发送MQ
++ * @create 2024-04-03 15:30
++ */
++@Data
++public class Task {
++
++    /** 自增ID */
++    private String id;
++    /** 消息主题 */
++    private String topic;
++    /** 消息主体 */
++    private String message;
++    /** 任务状态；create-创建、completed-完成、fail-失败 */
++    private String state;
++    /** 创建时间 */
++    private Date createTime;
++    /** 更新时间 */
++    private Date updateTime;
++
++}
+diff --git a/big-market-infrastructure/src/main/java/cn/bugstack/infrastructure/persistent/po/UserAwardRecord.java b/big-market-infrastructure/src/main/java/cn/bugstack/infrastructure/persistent/po/UserAwardRecord.java
+new file mode 100644
+index 0000000..6b83b96
+--- /dev/null
++++ b/big-market-infrastructure/src/main/java/cn/bugstack/infrastructure/persistent/po/UserAwardRecord.java
+@@ -0,0 +1,38 @@
++package cn.bugstack.infrastructure.persistent.po;
++
++import lombok.Data;
++
++import java.util.Date;
++
++/**
++ * @author Fuzhengwei bugstack.cn @小傅哥
++ * @description 用户中奖记录表
++ * @create 2024-04-03 15:30
++ */
++@Data
++public class UserAwardRecord {
++
++    /** 自增ID */
++    private String id;
++    /** 用户ID */
++    private String userId;
++    /** 活动ID */
++    private Long activityId;
++    /** 抽奖策略ID */
++    private Long strategyId;
++    /** 抽奖订单ID【作为幂等使用】 */
++    private String orderId;
++    /** 奖品ID */
++    private Integer awardId;
++    /** 奖品标题（名称） */
++    private String awardTitle;
++    /** 中奖时间 */
++    private Date awardTime;
++    /** 奖品状态；create-创建、completed-发奖完成 */
++    private String awardState;
++    /** 创建时间 */
++    private Date createTime;
++    /** 更新时间 */
++    private Date updateTime;
++
++}
+diff --git a/big-market-infrastructure/src/main/java/cn/bugstack/infrastructure/persistent/po/UserRaffleOrder.java b/big-market-infrastructure/src/main/java/cn/bugstack/infrastructure/persistent/po/UserRaffleOrder.java
+new file mode 100644
+index 0000000..c262a6f
+--- /dev/null
++++ b/big-market-infrastructure/src/main/java/cn/bugstack/infrastructure/persistent/po/UserRaffleOrder.java
+@@ -0,0 +1,36 @@
++package cn.bugstack.infrastructure.persistent.po;
++
++import lombok.Data;
++
++import java.util.Date;
++
++/**
++ * @author Fuzhengwei bugstack.cn @小傅哥
++ * @description 用户抽奖订单表
++ * @create 2024-04-03 15:30
++ */
++@Data
++public class UserRaffleOrder {
++
++    /** 用户ID */
++    private String id;
++    /** 活动ID */
++    private String userId;
++    /** 活动名称 */
++    private Long activityId;
++    /** 抽奖策略ID */
++    private String activityName;
++    /** 订单ID */
++    private Long strategyId;
++    /** 下单时间 */
++    private String orderId;
++    /** 订单状态；create-创建、used-已使用、cancel-已作废 */
++    private Date orderTime;
++    /** 创建时间 */
++    private String orderState;
++    /** 更新时间 */
++    private Date createTime;
++    /**  */
++    private Date updateTime;
++
++}
+diff --git a/docs/dev-ops/mysql/sql/big_market.sql b/docs/dev-ops/mysql/sql/big_market.sql
+index c02f8e5..20d876f 100644
+--- a/docs/dev-ops/mysql/sql/big_market.sql
++++ b/docs/dev-ops/mysql/sql/big_market.sql
+@@ -7,7 +7,7 @@
+ #
+ # 主机: 127.0.0.1 (MySQL 5.6.39)
+ # 数据库: big_market
+-# 生成时间: 2024-04-02 13:46:54 +0000
++# 生成时间: 2024-04-03 08:04:58 +0000
+ # ************************************************************
+ 
+ 
+@@ -269,7 +269,7 @@ LOCK TABLES `strategy` WRITE;
+ INSERT INTO `strategy` (`id`, `strategy_id`, `strategy_desc`, `rule_models`, `create_time`, `update_time`)
+ VALUES
+ 	(1,100001,'抽奖策略','rule_blacklist,rule_weight','2023-12-09 09:37:19','2024-01-20 11:39:23'),
+-	(2,100003,'抽奖策略-验证lock','rule_blacklist','2024-01-13 10:34:06','2024-01-20 15:03:19'),
++	(2,100003,'抽奖策略-验证lock',NULL,'2024-01-13 10:34:06','2024-04-03 16:03:21'),
+ 	(3,100002,'抽奖策略-非完整1概率',NULL,'2023-12-09 09:37:19','2024-02-03 10:14:17'),
+ 	(4,100004,'抽奖策略-随机抽奖',NULL,'2023-12-09 09:37:19','2024-01-20 19:21:03'),
+ 	(5,100005,'抽奖策略-测试概率计算',NULL,'2023-12-09 09:37:19','2024-01-21 21:54:58'),
+diff --git a/docs/dev-ops/mysql/sql/big_market_01.sql b/docs/dev-ops/mysql/sql/big_market_01.sql
+index c87d1e0..6cb60a2 100644
+--- a/docs/dev-ops/mysql/sql/big_market_01.sql
++++ b/docs/dev-ops/mysql/sql/big_market_01.sql
+@@ -7,7 +7,7 @@
+ #
+ # 主机: 127.0.0.1 (MySQL 5.6.39)
+ # 数据库: big_market_01
+-# 生成时间: 2024-04-02 13:47:02 +0000
++# 生成时间: 2024-04-03 07:23:12 +0000
+ # ************************************************************
+ 
+ 
+@@ -38,7 +38,7 @@ CREATE TABLE `raffle_activity_account` (
+   `month_count` int(8) NOT NULL COMMENT '月次数',
+   `month_count_surplus` int(8) NOT NULL COMMENT '月次数-剩余',
+   `create_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+-  `update_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '更新时间',
++  `update_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+   PRIMARY KEY (`id`),
+   UNIQUE KEY `uq_user_id_activity_id` (`user_id`,`activity_id`)
+ ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='抽奖活动账户表';
+@@ -54,6 +54,46 @@ VALUES
+ UNLOCK TABLES;
+ 
+ 
++# 转储表 raffle_activity_account_day
++# ------------------------------------------------------------
++
++DROP TABLE IF EXISTS `raffle_activity_account_day`;
++
++CREATE TABLE `raffle_activity_account_day` (
++  `id` int(11) unsigned NOT NULL AUTO_INCREMENT COMMENT '自增ID',
++  `user_id` varchar(32) NOT NULL COMMENT '用户ID',
++  `activity_id` bigint(12) NOT NULL COMMENT '活动ID',
++  `day` varchar(10) NOT NULL COMMENT '日期（yyyy-mm-dd）',
++  `day_count` int(8) NOT NULL COMMENT '日次数',
++  `day_count_surplus` int(8) NOT NULL COMMENT '日次数-剩余',
++  `create_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
++  `update_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
++  PRIMARY KEY (`id`),
++  UNIQUE KEY `uq_user_id_activity_id_day` (`user_id`,`activity_id`,`day`)
++) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='抽奖活动账户表-日次数';
++
++
++
++# 转储表 raffle_activity_account_month
++# ------------------------------------------------------------
++
++DROP TABLE IF EXISTS `raffle_activity_account_month`;
++
++CREATE TABLE `raffle_activity_account_month` (
++  `id` int(11) unsigned NOT NULL AUTO_INCREMENT COMMENT '自增ID',
++  `user_id` varchar(32) NOT NULL COMMENT '用户ID',
++  `activity_id` bigint(12) NOT NULL COMMENT '活动ID',
++  `month` varchar(7) NOT NULL COMMENT '月（yyyy-mm）',
++  `month_count` int(8) NOT NULL COMMENT '月次数',
++  `month_count_surplus` int(8) NOT NULL COMMENT '月次数-剩余',
++  `create_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
++  `update_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
++  PRIMARY KEY (`id`),
++  UNIQUE KEY `uq_user_id_activity_id_month` (`user_id`,`activity_id`,`month`)
++) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='抽奖活动账户表-月次数';
++
++
++
+ # 转储表 raffle_activity_order_000
+ # ------------------------------------------------------------
+ 
+@@ -222,6 +262,219 @@ CREATE TABLE `raffle_activity_order_003` (
+ 
+ 
+ 
++# 转储表 task
++# ------------------------------------------------------------
++
++DROP TABLE IF EXISTS `task`;
++
++CREATE TABLE `task` (
++  `id` int(11) unsigned NOT NULL AUTO_INCREMENT COMMENT '自增ID',
++  `topic` varchar(32) NOT NULL COMMENT '消息主题',
++  `message` varchar(512) NOT NULL COMMENT '消息主体',
++  `state` varchar(16) NOT NULL DEFAULT 'create' COMMENT '任务状态；create-创建、completed-完成、fail-失败',
++  `create_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
++  `update_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
++  PRIMARY KEY (`id`)
++) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='任务表，发送MQ';
++
++
++
++# 转储表 user_award_record_000
++# ------------------------------------------------------------
++
++DROP TABLE IF EXISTS `user_award_record_000`;
++
++CREATE TABLE `user_award_record_000` (
++  `id` int(11) unsigned NOT NULL AUTO_INCREMENT COMMENT '自增ID',
++  `user_id` varchar(32) NOT NULL COMMENT '用户ID',
++  `activity_id` bigint(12) NOT NULL COMMENT '活动ID',
++  `strategy_id` bigint(8) NOT NULL COMMENT '抽奖策略ID',
++  `order_id` varchar(12) NOT NULL COMMENT '抽奖订单ID【作为幂等使用】',
++  `award_id` int(11) NOT NULL COMMENT '奖品ID',
++  `award_title` varchar(128) NOT NULL COMMENT '奖品标题（名称）',
++  `award_time` datetime NOT NULL COMMENT '中奖时间',
++  `award_state` varchar(16) NOT NULL DEFAULT 'create' COMMENT '奖品状态；create-创建、completed-发奖完成',
++  `create_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
++  `update_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
++  PRIMARY KEY (`id`),
++  UNIQUE KEY `uq_order_id` (`order_id`),
++  KEY `idx_user_id` (`user_id`),
++  KEY `idx_activity_id` (`activity_id`),
++  KEY `idx_award_id` (`strategy_id`)
++) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='用户中奖记录表';
++
++
++
++# 转储表 user_award_record_001
++# ------------------------------------------------------------
++
++DROP TABLE IF EXISTS `user_award_record_001`;
++
++CREATE TABLE `user_award_record_001` (
++  `id` int(11) unsigned NOT NULL AUTO_INCREMENT COMMENT '自增ID',
++  `user_id` varchar(32) NOT NULL COMMENT '用户ID',
++  `activity_id` bigint(12) NOT NULL COMMENT '活动ID',
++  `strategy_id` bigint(8) NOT NULL COMMENT '抽奖策略ID',
++  `order_id` varchar(12) NOT NULL COMMENT '抽奖订单ID【作为幂等使用】',
++  `award_id` int(11) NOT NULL COMMENT '奖品ID',
++  `award_title` varchar(128) NOT NULL COMMENT '奖品标题（名称）',
++  `award_time` datetime NOT NULL COMMENT '中奖时间',
++  `award_state` varchar(16) NOT NULL DEFAULT 'create' COMMENT '奖品状态；create-创建、completed-发奖完成',
++  `create_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
++  `update_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
++  PRIMARY KEY (`id`),
++  UNIQUE KEY `uq_order_id` (`order_id`),
++  KEY `idx_user_id` (`user_id`),
++  KEY `idx_activity_id` (`activity_id`),
++  KEY `idx_award_id` (`strategy_id`)
++) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='用户中奖记录表';
++
++
++
++# 转储表 user_award_record_002
++# ------------------------------------------------------------
++
++DROP TABLE IF EXISTS `user_award_record_002`;
++
++CREATE TABLE `user_award_record_002` (
++  `id` int(11) unsigned NOT NULL AUTO_INCREMENT COMMENT '自增ID',
++  `user_id` varchar(32) NOT NULL COMMENT '用户ID',
++  `activity_id` bigint(12) NOT NULL COMMENT '活动ID',
++  `strategy_id` bigint(8) NOT NULL COMMENT '抽奖策略ID',
++  `order_id` varchar(12) NOT NULL COMMENT '抽奖订单ID【作为幂等使用】',
++  `award_id` int(11) NOT NULL COMMENT '奖品ID',
++  `award_title` varchar(128) NOT NULL COMMENT '奖品标题（名称）',
++  `award_time` datetime NOT NULL COMMENT '中奖时间',
++  `award_state` varchar(16) NOT NULL DEFAULT 'create' COMMENT '奖品状态；create-创建、completed-发奖完成',
++  `create_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
++  `update_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
++  PRIMARY KEY (`id`),
++  UNIQUE KEY `uq_order_id` (`order_id`),
++  KEY `idx_user_id` (`user_id`),
++  KEY `idx_activity_id` (`activity_id`),
++  KEY `idx_award_id` (`strategy_id`)
++) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='用户中奖记录表';
++
++
++
++# 转储表 user_award_record_003
++# ------------------------------------------------------------
++
++DROP TABLE IF EXISTS `user_award_record_003`;
++
++CREATE TABLE `user_award_record_003` (
++  `id` int(11) unsigned NOT NULL AUTO_INCREMENT COMMENT '自增ID',
++  `user_id` varchar(32) NOT NULL COMMENT '用户ID',
++  `activity_id` bigint(12) NOT NULL COMMENT '活动ID',
++  `strategy_id` bigint(8) NOT NULL COMMENT '抽奖策略ID',
++  `order_id` varchar(12) NOT NULL COMMENT '抽奖订单ID【作为幂等使用】',
++  `award_id` int(11) NOT NULL COMMENT '奖品ID',
++  `award_title` varchar(128) NOT NULL COMMENT '奖品标题（名称）',
++  `award_time` datetime NOT NULL COMMENT '中奖时间',
++  `award_state` varchar(16) NOT NULL DEFAULT 'create' COMMENT '奖品状态；create-创建、completed-发奖完成',
++  `create_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
++  `update_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
++  PRIMARY KEY (`id`),
++  UNIQUE KEY `uq_order_id` (`order_id`),
++  KEY `idx_user_id` (`user_id`),
++  KEY `idx_activity_id` (`activity_id`),
++  KEY `idx_award_id` (`strategy_id`)
++) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='用户中奖记录表';
++
++
++
++# 转储表 user_raffle_order_000
++# ------------------------------------------------------------
++
++DROP TABLE IF EXISTS `user_raffle_order_000`;
++
++CREATE TABLE `user_raffle_order_000` (
++  `id` int(11) unsigned NOT NULL AUTO_INCREMENT,
++  `user_id` varchar(32) NOT NULL COMMENT '用户ID',
++  `activity_id` bigint(12) NOT NULL COMMENT '活动ID',
++  `activity_name` varchar(64) NOT NULL COMMENT '活动名称',
++  `strategy_id` bigint(8) NOT NULL COMMENT '抽奖策略ID',
++  `order_id` varchar(12) NOT NULL COMMENT '订单ID',
++  `order_time` datetime NOT NULL COMMENT '下单时间',
++  `order_state` varchar(16) NOT NULL DEFAULT 'create' COMMENT '订单状态；create-创建、used-已使用、cancel-已作废',
++  `create_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
++  `update_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
++  PRIMARY KEY (`id`),
++  UNIQUE KEY `uq_order_id` (`order_id`),
++  KEY `idx_user_id_activity_id` (`user_id`,`activity_id`)
++) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='用户抽奖订单表';
++
++
++
++# 转储表 user_raffle_order_001
++# ------------------------------------------------------------
++
++DROP TABLE IF EXISTS `user_raffle_order_001`;
++
++CREATE TABLE `user_raffle_order_001` (
++  `id` int(11) unsigned NOT NULL AUTO_INCREMENT,
++  `user_id` varchar(32) NOT NULL COMMENT '用户ID',
++  `activity_id` bigint(12) NOT NULL COMMENT '活动ID',
++  `activity_name` varchar(64) NOT NULL COMMENT '活动名称',
++  `strategy_id` bigint(8) NOT NULL COMMENT '抽奖策略ID',
++  `order_id` varchar(12) NOT NULL COMMENT '订单ID',
++  `order_time` datetime NOT NULL COMMENT '下单时间',
++  `order_state` varchar(16) NOT NULL DEFAULT 'create' COMMENT '订单状态；create-创建、used-已使用、cancel-已作废',
++  `create_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
++  `update_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
++  PRIMARY KEY (`id`),
++  UNIQUE KEY `uq_order_id` (`order_id`),
++  KEY `idx_user_id_activity_id` (`user_id`,`activity_id`)
++) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='用户抽奖订单表';
++
++
++
++# 转储表 user_raffle_order_002
++# ------------------------------------------------------------
++
++DROP TABLE IF EXISTS `user_raffle_order_002`;
++
++CREATE TABLE `user_raffle_order_002` (
++  `id` int(11) unsigned NOT NULL AUTO_INCREMENT,
++  `user_id` varchar(32) NOT NULL COMMENT '用户ID',
++  `activity_id` bigint(12) NOT NULL COMMENT '活动ID',
++  `activity_name` varchar(64) NOT NULL COMMENT '活动名称',
++  `strategy_id` bigint(8) NOT NULL COMMENT '抽奖策略ID',
++  `order_id` varchar(12) NOT NULL COMMENT '订单ID',
++  `order_time` datetime NOT NULL COMMENT '下单时间',
++  `order_state` varchar(16) NOT NULL DEFAULT 'create' COMMENT '订单状态；create-创建、used-已使用、cancel-已作废',
++  `create_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
++  `update_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
++  PRIMARY KEY (`id`),
++  UNIQUE KEY `uq_order_id` (`order_id`),
++  KEY `idx_user_id_activity_id` (`user_id`,`activity_id`)
++) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='用户抽奖订单表';
++
++
++
++# 转储表 user_raffle_order_003
++# ------------------------------------------------------------
++
++DROP TABLE IF EXISTS `user_raffle_order_003`;
++
++CREATE TABLE `user_raffle_order_003` (
++  `id` int(11) unsigned NOT NULL AUTO_INCREMENT,
++  `user_id` varchar(32) NOT NULL COMMENT '用户ID',
++  `activity_id` bigint(12) NOT NULL COMMENT '活动ID',
++  `activity_name` varchar(64) NOT NULL COMMENT '活动名称',
++  `strategy_id` bigint(8) NOT NULL COMMENT '抽奖策略ID',
++  `order_id` varchar(12) NOT NULL COMMENT '订单ID',
++  `order_time` datetime NOT NULL COMMENT '下单时间',
++  `order_state` varchar(16) NOT NULL DEFAULT 'create' COMMENT '订单状态；create-创建、used-已使用、cancel-已作废',
++  `create_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
++  `update_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
++  PRIMARY KEY (`id`),
++  UNIQUE KEY `uq_order_id` (`order_id`),
++  KEY `idx_user_id_activity_id` (`user_id`,`activity_id`)
++) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='用户抽奖订单表';
++
++
++
+ 
+ /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
+ /*!40101 SET SQL_MODE=@OLD_SQL_MODE */;
+diff --git a/docs/dev-ops/mysql/sql/big_market_02.sql b/docs/dev-ops/mysql/sql/big_market_02.sql
+index e1c130d..3f328fd 100644
+--- a/docs/dev-ops/mysql/sql/big_market_02.sql
++++ b/docs/dev-ops/mysql/sql/big_market_02.sql
+@@ -7,7 +7,7 @@
+ #
+ # 主机: 127.0.0.1 (MySQL 5.6.39)
+ # 数据库: big_market_02
+-# 生成时间: 2024-04-02 13:47:09 +0000
++# 生成时间: 2024-04-03 07:23:24 +0000
+ # ************************************************************
+ 
+ 
+@@ -54,6 +54,46 @@ VALUES
+ UNLOCK TABLES;
+ 
+ 
++# 转储表 raffle_activity_account_day
++# ------------------------------------------------------------
++
++DROP TABLE IF EXISTS `raffle_activity_account_day`;
++
++CREATE TABLE `raffle_activity_account_day` (
++  `id` int(11) unsigned NOT NULL AUTO_INCREMENT COMMENT '自增ID',
++  `user_id` varchar(32) NOT NULL COMMENT '用户ID',
++  `activity_id` bigint(12) NOT NULL COMMENT '活动ID',
++  `day` varchar(10) NOT NULL COMMENT '日期（yyyy-mm-dd）',
++  `day_count` int(8) NOT NULL COMMENT '日次数',
++  `day_count_surplus` int(8) NOT NULL COMMENT '日次数-剩余',
++  `create_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
++  `update_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
++  PRIMARY KEY (`id`),
++  UNIQUE KEY `uq_user_id_activity_id_day` (`user_id`,`activity_id`,`day`)
++) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='抽奖活动账户表-日次数';
++
++
++
++# 转储表 raffle_activity_account_month
++# ------------------------------------------------------------
++
++DROP TABLE IF EXISTS `raffle_activity_account_month`;
++
++CREATE TABLE `raffle_activity_account_month` (
++  `id` int(11) unsigned NOT NULL AUTO_INCREMENT COMMENT '自增ID',
++  `user_id` varchar(32) NOT NULL COMMENT '用户ID',
++  `activity_id` bigint(12) NOT NULL COMMENT '活动ID',
++  `month` varchar(7) NOT NULL COMMENT '月（yyyy-mm）',
++  `month_count` int(8) NOT NULL COMMENT '月次数',
++  `month_count_surplus` int(8) NOT NULL COMMENT '月次数-剩余',
++  `create_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
++  `update_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
++  PRIMARY KEY (`id`),
++  UNIQUE KEY `uq_user_id_activity_id_month` (`user_id`,`activity_id`,`month`)
++) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='抽奖活动账户表-月次数';
++
++
++
+ # 转储表 raffle_activity_order_000
+ # ------------------------------------------------------------
+ 
+@@ -179,6 +219,219 @@ CREATE TABLE `raffle_activity_order_003` (
+ 
+ 
+ 
++# 转储表 task
++# ------------------------------------------------------------
++
++DROP TABLE IF EXISTS `task`;
++
++CREATE TABLE `task` (
++  `id` int(11) unsigned NOT NULL AUTO_INCREMENT COMMENT '自增ID',
++  `topic` varchar(32) NOT NULL COMMENT '消息主题',
++  `message` varchar(512) NOT NULL COMMENT '消息主体',
++  `state` varchar(16) NOT NULL DEFAULT 'create' COMMENT '任务状态；create-创建、completed-完成、fail-失败',
++  `create_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
++  `update_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
++  PRIMARY KEY (`id`)
++) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='任务表，发送MQ';
++
++
++
++# 转储表 user_award_record_000
++# ------------------------------------------------------------
++
++DROP TABLE IF EXISTS `user_award_record_000`;
++
++CREATE TABLE `user_award_record_000` (
++  `id` int(11) unsigned NOT NULL AUTO_INCREMENT COMMENT '自增ID',
++  `user_id` varchar(32) NOT NULL COMMENT '用户ID',
++  `activity_id` bigint(12) NOT NULL COMMENT '活动ID',
++  `strategy_id` bigint(8) NOT NULL COMMENT '抽奖策略ID',
++  `order_id` varchar(12) NOT NULL COMMENT '抽奖订单ID【作为幂等使用】',
++  `award_id` int(11) NOT NULL COMMENT '奖品ID',
++  `award_title` varchar(128) NOT NULL COMMENT '奖品标题（名称）',
++  `award_time` datetime NOT NULL COMMENT '中奖时间',
++  `award_state` varchar(16) NOT NULL DEFAULT 'create' COMMENT '奖品状态；create-创建、completed-发奖完成',
++  `create_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
++  `update_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
++  PRIMARY KEY (`id`),
++  UNIQUE KEY `uq_order_id` (`order_id`),
++  KEY `idx_user_id` (`user_id`),
++  KEY `idx_activity_id` (`activity_id`),
++  KEY `idx_award_id` (`strategy_id`)
++) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='用户中奖记录表';
++
++
++
++# 转储表 user_award_record_001
++# ------------------------------------------------------------
++
++DROP TABLE IF EXISTS `user_award_record_001`;
++
++CREATE TABLE `user_award_record_001` (
++  `id` int(11) unsigned NOT NULL AUTO_INCREMENT COMMENT '自增ID',
++  `user_id` varchar(32) NOT NULL COMMENT '用户ID',
++  `activity_id` bigint(12) NOT NULL COMMENT '活动ID',
++  `strategy_id` bigint(8) NOT NULL COMMENT '抽奖策略ID',
++  `order_id` varchar(12) NOT NULL COMMENT '抽奖订单ID【作为幂等使用】',
++  `award_id` int(11) NOT NULL COMMENT '奖品ID',
++  `award_title` varchar(128) NOT NULL COMMENT '奖品标题（名称）',
++  `award_time` datetime NOT NULL COMMENT '中奖时间',
++  `award_state` varchar(16) NOT NULL DEFAULT 'create' COMMENT '奖品状态；create-创建、completed-发奖完成',
++  `create_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
++  `update_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
++  PRIMARY KEY (`id`),
++  UNIQUE KEY `uq_order_id` (`order_id`),
++  KEY `idx_user_id` (`user_id`),
++  KEY `idx_activity_id` (`activity_id`),
++  KEY `idx_award_id` (`strategy_id`)
++) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='用户中奖记录表';
++
++
++
++# 转储表 user_award_record_002
++# ------------------------------------------------------------
++
++DROP TABLE IF EXISTS `user_award_record_002`;
++
++CREATE TABLE `user_award_record_002` (
++  `id` int(11) unsigned NOT NULL AUTO_INCREMENT COMMENT '自增ID',
++  `user_id` varchar(32) NOT NULL COMMENT '用户ID',
++  `activity_id` bigint(12) NOT NULL COMMENT '活动ID',
++  `strategy_id` bigint(8) NOT NULL COMMENT '抽奖策略ID',
++  `order_id` varchar(12) NOT NULL COMMENT '抽奖订单ID【作为幂等使用】',
++  `award_id` int(11) NOT NULL COMMENT '奖品ID',
++  `award_title` varchar(128) NOT NULL COMMENT '奖品标题（名称）',
++  `award_time` datetime NOT NULL COMMENT '中奖时间',
++  `award_state` varchar(16) NOT NULL DEFAULT 'create' COMMENT '奖品状态；create-创建、completed-发奖完成',
++  `create_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
++  `update_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
++  PRIMARY KEY (`id`),
++  UNIQUE KEY `uq_order_id` (`order_id`),
++  KEY `idx_user_id` (`user_id`),
++  KEY `idx_activity_id` (`activity_id`),
++  KEY `idx_award_id` (`strategy_id`)
++) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='用户中奖记录表';
++
++
++
++# 转储表 user_award_record_003
++# ------------------------------------------------------------
++
++DROP TABLE IF EXISTS `user_award_record_003`;
++
++CREATE TABLE `user_award_record_003` (
++  `id` int(11) unsigned NOT NULL AUTO_INCREMENT COMMENT '自增ID',
++  `user_id` varchar(32) NOT NULL COMMENT '用户ID',
++  `activity_id` bigint(12) NOT NULL COMMENT '活动ID',
++  `strategy_id` bigint(8) NOT NULL COMMENT '抽奖策略ID',
++  `order_id` varchar(12) NOT NULL COMMENT '抽奖订单ID【作为幂等使用】',
++  `award_id` int(11) NOT NULL COMMENT '奖品ID',
++  `award_title` varchar(128) NOT NULL COMMENT '奖品标题（名称）',
++  `award_time` datetime NOT NULL COMMENT '中奖时间',
++  `award_state` varchar(16) NOT NULL DEFAULT 'create' COMMENT '奖品状态；create-创建、completed-发奖完成',
++  `create_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
++  `update_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
++  PRIMARY KEY (`id`),
++  UNIQUE KEY `uq_order_id` (`order_id`),
++  KEY `idx_user_id` (`user_id`),
++  KEY `idx_activity_id` (`activity_id`),
++  KEY `idx_award_id` (`strategy_id`)
++) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='用户中奖记录表';
++
++
++
++# 转储表 user_raffle_order_000
++# ------------------------------------------------------------
++
++DROP TABLE IF EXISTS `user_raffle_order_000`;
++
++CREATE TABLE `user_raffle_order_000` (
++  `id` int(11) unsigned NOT NULL AUTO_INCREMENT,
++  `user_id` varchar(32) NOT NULL COMMENT '用户ID',
++  `activity_id` bigint(12) NOT NULL COMMENT '活动ID',
++  `activity_name` varchar(64) NOT NULL COMMENT '活动名称',
++  `strategy_id` bigint(8) NOT NULL COMMENT '抽奖策略ID',
++  `order_id` varchar(12) NOT NULL COMMENT '订单ID',
++  `order_time` datetime NOT NULL COMMENT '下单时间',
++  `order_state` varchar(16) NOT NULL DEFAULT 'create' COMMENT '订单状态；create-创建、used-已使用、cancle-已作废',
++  `create_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
++  `update_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
++  PRIMARY KEY (`id`),
++  UNIQUE KEY `uq_order_id` (`order_id`),
++  KEY `idx_user_id_activity_id` (`user_id`,`activity_id`)
++) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='用户抽奖订单表';
++
++
++
++# 转储表 user_raffle_order_001
++# ------------------------------------------------------------
++
++DROP TABLE IF EXISTS `user_raffle_order_001`;
++
++CREATE TABLE `user_raffle_order_001` (
++  `id` int(11) unsigned NOT NULL AUTO_INCREMENT,
++  `user_id` varchar(32) NOT NULL COMMENT '用户ID',
++  `activity_id` bigint(12) NOT NULL COMMENT '活动ID',
++  `activity_name` varchar(64) NOT NULL COMMENT '活动名称',
++  `strategy_id` bigint(8) NOT NULL COMMENT '抽奖策略ID',
++  `order_id` varchar(12) NOT NULL COMMENT '订单ID',
++  `order_time` datetime NOT NULL COMMENT '下单时间',
++  `order_state` varchar(16) NOT NULL DEFAULT 'create' COMMENT '订单状态；create-创建、used-已使用、cancle-已作废',
++  `create_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
++  `update_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
++  PRIMARY KEY (`id`),
++  UNIQUE KEY `uq_order_id` (`order_id`),
++  KEY `idx_user_id_activity_id` (`user_id`,`activity_id`)
++) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='用户抽奖订单表';
++
++
++
++# 转储表 user_raffle_order_002
++# ------------------------------------------------------------
++
++DROP TABLE IF EXISTS `user_raffle_order_002`;
++
++CREATE TABLE `user_raffle_order_002` (
++  `id` int(11) unsigned NOT NULL AUTO_INCREMENT,
++  `user_id` varchar(32) NOT NULL COMMENT '用户ID',
++  `activity_id` bigint(12) NOT NULL COMMENT '活动ID',
++  `activity_name` varchar(64) NOT NULL COMMENT '活动名称',
++  `strategy_id` bigint(8) NOT NULL COMMENT '抽奖策略ID',
++  `order_id` varchar(12) NOT NULL COMMENT '订单ID',
++  `order_time` datetime NOT NULL COMMENT '下单时间',
++  `order_state` varchar(16) NOT NULL DEFAULT 'create' COMMENT '订单状态；create-创建、used-已使用、cancle-已作废',
++  `create_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
++  `update_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
++  PRIMARY KEY (`id`),
++  UNIQUE KEY `uq_order_id` (`order_id`),
++  KEY `idx_user_id_activity_id` (`user_id`,`activity_id`)
++) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='用户抽奖订单表';
++
++
++
++# 转储表 user_raffle_order_003
++# ------------------------------------------------------------
++
++DROP TABLE IF EXISTS `user_raffle_order_003`;
++
++CREATE TABLE `user_raffle_order_003` (
++  `id` int(11) unsigned NOT NULL AUTO_INCREMENT,
++  `user_id` varchar(32) NOT NULL COMMENT '用户ID',
++  `activity_id` bigint(12) NOT NULL COMMENT '活动ID',
++  `activity_name` varchar(64) NOT NULL COMMENT '活动名称',
++  `strategy_id` bigint(8) NOT NULL COMMENT '抽奖策略ID',
++  `order_id` varchar(12) NOT NULL COMMENT '订单ID',
++  `order_time` datetime NOT NULL COMMENT '下单时间',
++  `order_state` varchar(16) NOT NULL DEFAULT 'create' COMMENT '订单状态；create-创建、used-已使用、cancle-已作废',
++  `create_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
++  `update_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
++  PRIMARY KEY (`id`),
++  UNIQUE KEY `uq_order_id` (`order_id`),
++  KEY `idx_user_id_activity_id` (`user_id`,`activity_id`)
++) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='用户抽奖订单表';
++
++
++
+ 
+ /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
+ /*!40101 SET SQL_MODE=@OLD_SQL_MODE */;

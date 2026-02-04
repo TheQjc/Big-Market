@@ -1,0 +1,107 @@
+schema: spec-driven
+
+# Project context
+# This is shown to AI when creating artifacts.
+context: |
+  Project: Big Market (大营销平台 - Raffle/Marketing System)
+  Author: 小傅哥 (Fuzhengwei) - bugstack.cn
+  Language: Java 8
+  Framework: Spring Boot 2.7.12
+  Architecture: Domain-Driven Design (DDD) + Clean Architecture
+
+  ========================================
+  Module Structure (模块结构)
+  ========================================
+  - big-market-app: 应用层入口，Spring Boot 启动类，配置文件，MyBatis Mapper XML
+  - big-market-api: API 接口定义，DTOs，RPC 接口
+  - big-market-domain: 核心领域层，业务逻辑，领域模型，仓储接口
+  - big-market-infrastructure: 基础设施层，数据库实现，Redis，外部网关
+  - big-market-trigger: 触发器层，HTTP 控制器，MQ 消费者，定时任务
+  - big-market-types: 通用类型，枚举，异常，常量
+
+  ========================================
+  Tech Stack (技术栈)
+  ========================================
+  - Web: Spring Boot Web, Tomcat (Port 8091)
+  - Persistence: MyBatis 2.1.4, MySQL 8.x (HikariCP连接池)
+  - Database Sharding: mini-db-router (自研分库分表中间件, 2库4表, routerKey=userId)
+  - Cache: Redis (Redisson)
+  - Utils: Lombok, Fastjson 2.0.28, Apache Commons Lang3 3.9, Guava 32.1.3
+  - Security: JWT (jjwt 0.9.1, java-jwt 4.4.0)
+
+  ========================================
+  Domain Bounded Contexts (领域上下文)
+  ========================================
+  1. Activity Domain (活动领域 - cn.bugstack.domain.activity)
+     - model/entity: ActivityEntity, ActivityOrderEntity, ActivityAccountEntity, ActivitySkuEntity, ActivityCountEntity, SkuRechargeEntity
+     - model/aggregate: CreateOrderAggregate
+     - model/valobj: ActivityStateVO, OrderStateVO
+     - repository: IActivityRepository
+     - service: IRaffleOrder, AbstractRaffleActivity, RaffleActivityService, RaffleActivitySupport
+     - service/rule: 活动规则责任链 (IActionChain, AbstractActionChain)
+       - impl: ActivityBaseActionChain (有效期/状态校验), ActivitySkuStockActionChain (SKU库存校验)
+
+  2. Strategy Domain (策略领域 - cn.bugstack.domain.strategy)
+     - model/entity: StrategyEntity, StrategyAwardEntity, StrategyRuleEntity, RaffleFactorEntity, RaffleAwardEntity
+     - model/valobj: 策略规则值对象
+     - repository: IStrategyRepository
+     - service: IRaffleStrategy, AbstractRaffleStrategy
+     - service/armory: IStrategyArmory (策略装配), IStrategyDispatch (策略调度)
+     - service/rule/chain: 前置规则责任链 (ILogicChain)
+       - impl: BackListLogicChain (黑名单), RuleWeightLogicChain (权重规则), DefaultLogicChain (默认)
+     - service/rule/tree: 后置规则决策树 (ILogicTreeNode)
+       - impl: RuleLockLogicTreeNode (次数锁), RuleStockLogicTreeNode (库存扣减), RuleLuckAwardLogicTreeNode (兜底奖品)
+
+  ========================================
+  Database Tables (数据库表)
+  ========================================
+  主库 (big_market): award, strategy, strategy_award, strategy_rule, rule_tree, rule_tree_node, rule_tree_node_line, raffle_activity, raffle_activity_count, raffle_activity_sku
+  分库 (big_market_01/02): raffle_activity_account, raffle_activity_order_000~003
+
+  Persistent Objects (PO):
+    Award, Strategy, StrategyAward, StrategyRule, RuleTree, RuleTreeNode, RuleTreeNodeLine,
+    RaffleActivity, RaffleActivityAccount, RaffleActivityCount, RaffleActivityOrder, RaffleActivitySku
+
+  ========================================
+  Design Patterns (设计模式)
+  ========================================
+  - Template Method: AbstractRaffleActivity, AbstractRaffleStrategy (定义算法骨架)
+  - Chain of Responsibility: ILogicChain/IActionChain (规则责任链)
+  - Strategy Pattern: 规则树节点 ILogicTreeNode
+  - Factory: DefaultChainFactory, DefaultTreeFactory, DefaultActivityChainFactory
+  - Repository: 仓储模式隔离领域与基础设施
+  - Aggregate Root: CreateOrderAggregate (聚合根保证事务一致性)
+
+  ========================================
+  Conventions (编码规范)
+  ========================================
+  - Author tags: @author Fuzhengwei bugstack.cn @小傅哥
+  - Naming:
+    - Interfaces start with 'I' (e.g., IActivityRepository, IRaffleStrategy)
+    - Domain objects suffixes: Entity, VO (ValueObject), Aggregate
+    - Persistent objects: PO classes in .po package (no suffix)
+    - Service abstractions: Abstract prefix (AbstractRaffleActivity)
+  - Error Handling: ResponseCode enum + AppException
+  - Comments: Mandatory class-level Javadoc with @description and @create date
+  - Transaction: Use TransactionTemplate for programmatic transactions with db-router
+  - Idempotency: Use outBusinessNo + unique index for deduplication
+
+# Per-artifact rules
+rules:
+  code-generation:
+    - Always include standard Javadoc header with @author, @description, @create
+    - Follow the existing DDD directory structure strictly (model/entity, model/valobj, model/aggregate, repository, service)
+    - Use Lombok annotations (@Data, @Builder, @AllArgsConstructor, @NoArgsConstructor, @Slf4j)
+    - For database operations, consider the db-router middleware context (dbRouter.doRouter + transactionTemplate)
+    - Use constructor injection (Spring recommended)
+    - Chain/Tree pattern implementations should extend Abstract base classes
+
+  domain-modeling:
+    - Entities contain business identity and state
+    - Value Objects are immutable and have no identity
+    - Aggregates ensure transactional consistency
+    - Repositories only define interfaces in domain layer
+
+  testing:
+    - Test classes in big-market-app/src/test with @SpringBootTest
+    - Use @Slf4j for logging test results
