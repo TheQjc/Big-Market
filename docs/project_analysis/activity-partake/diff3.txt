@@ -1,0 +1,1648 @@
+commit ce3f47f50dff8de736bcb7e2c9e6b375154b7e4e
+Author: 小傅哥 <184172133@qq.com>
+Date:   Fri Apr 5 17:23:51 2024 +0800
+
+    feat: 【营销服务】第18节：领取活动扣减账户额度
+
+diff --git a/big-market-app/src/main/resources/mybatis/mapper/raffle_activity_account_day_mapper.xml b/big-market-app/src/main/resources/mybatis/mapper/raffle_activity_account_day_mapper.xml
+index c34a1f9..adcd7bf 100644
+--- a/big-market-app/src/main/resources/mybatis/mapper/raffle_activity_account_day_mapper.xml
++++ b/big-market-app/src/main/resources/mybatis/mapper/raffle_activity_account_day_mapper.xml
+@@ -2,4 +2,34 @@
+ <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+ <mapper namespace="cn.bugstack.infrastructure.persistent.dao.IRaffleActivityAccountDayDao">
+ 
++    <resultMap id="dataMap" type="cn.bugstack.infrastructure.persistent.po.RaffleActivityAccountDay">
++        <id column="id" property="id"/>
++        <result column="user_id" property="userId"/>
++        <result column="activity_id" property="activityId"/>
++        <result column="day" property="day"/>
++        <result column="day_count" property="dayCount"/>
++        <result column="day_count_surplus" property="dayCountSurplus"/>
++        <result column="create_time" property="createTime"/>
++        <result column="update_time" property="updateTime"/>
++    </resultMap>
++
++    <insert id="insertActivityAccountDay" parameterType="cn.bugstack.infrastructure.persistent.po.RaffleActivityAccountDay">
++        insert into raffle_activity_account_day(
++        user_id, activity_id, day, day_count, day_count_surplus, create_time, update_time)
++        values
++        (#{userId}, #{activityId}, #{day}, #{dayCount}, #{dayCountSurplus}, now(), now())
++    </insert>
++
++    <update id="updateActivityAccountDaySubtractionQuota" parameterType="cn.bugstack.infrastructure.persistent.po.RaffleActivityAccountDay">
++        update raffle_activity_account_day
++        set day_count_surplus = day_count_surplus - 1, update_time = now()
++        where user_id = #{userId} and activity_id = #{activityId} and day = #{day} and day_count_surplus > 0
++    </update>
++
++    <select id="queryActivityAccountDayByUserId" parameterType="cn.bugstack.infrastructure.persistent.po.RaffleActivityAccountDay" resultMap="dataMap">
++        select user_id, activity_id, day, day_count, day_count_surplus
++        from raffle_activity_account_day
++        where user_id = #{userId} and activity_id = #{activityId} and day = #{day}
++    </select>
++
+ </mapper>
+diff --git a/big-market-app/src/main/resources/mybatis/mapper/raffle_activity_account_mapper.xml b/big-market-app/src/main/resources/mybatis/mapper/raffle_activity_account_mapper.xml
+index d5b0d16..3433e32 100644
+--- a/big-market-app/src/main/resources/mybatis/mapper/raffle_activity_account_mapper.xml
++++ b/big-market-app/src/main/resources/mybatis/mapper/raffle_activity_account_mapper.xml
+@@ -38,4 +38,32 @@
+         where user_id = #{userId} and activity_id = #{activityId}
+     </update>
+ 
++    <select id="queryActivityAccountByUserId" parameterType="cn.bugstack.infrastructure.persistent.po.RaffleActivityAccount" resultMap="dataMap">
++        select user_id, activity_id, total_count, total_count_surplus, day_count,
++        day_count_surplus, month_count, month_count_surplus
++        from raffle_activity_account
++        where user_id = #{userId} and activity_id = #{activityId}
++    </select>
++
++    <update id="updateActivityAccountSubtractionQuota" parameterType="cn.bugstack.infrastructure.persistent.po.RaffleActivityAccount">
++        update raffle_activity_account
++        set total_count_surplus = total_count_surplus - 1,
++            day_count_surplus = day_count_surplus - 1,
++            month_count_surplus = month_count_surplus - 1,
++            update_time = now()
++        where user_id = #{userId} and activity_id = #{activityId} and total_count_surplus > 0 and day_count_surplus > 0 and month_count_surplus > 0
++    </update>
++
++    <update id="updateActivityAccountMonthSurplusImageQuota" parameterType="cn.bugstack.infrastructure.persistent.po.RaffleActivityAccount">
++        update raffle_activity_account
++        set month_count_surplus = #{monthCountSurplus} - 1, update_time = now()
++        where user_id = #{userId} and activity_id = #{activityId}
++    </update>
++
++    <update id="updateActivityAccountDaySurplusImageQuota" parameterType="cn.bugstack.infrastructure.persistent.po.RaffleActivityAccountDay">
++        update raffle_activity_account
++        set day_count_surplus = #{dayCountSurplus} - 1, update_time = now()
++        where user_id = #{userId} and activity_id = #{activityId}
++    </update>
++
+ </mapper>
+diff --git a/big-market-app/src/main/resources/mybatis/mapper/raffle_activity_account_month_mapper.xml b/big-market-app/src/main/resources/mybatis/mapper/raffle_activity_account_month_mapper.xml
+index a80a400..aa0cb2f 100644
+--- a/big-market-app/src/main/resources/mybatis/mapper/raffle_activity_account_month_mapper.xml
++++ b/big-market-app/src/main/resources/mybatis/mapper/raffle_activity_account_month_mapper.xml
+@@ -2,4 +2,34 @@
+ <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+ <mapper namespace="cn.bugstack.infrastructure.persistent.dao.IRaffleActivityAccountMonthDao">
+ 
++    <resultMap id="dataMap" type="cn.bugstack.infrastructure.persistent.po.RaffleActivityAccountMonth">
++        <id column="id" property="id"/>
++        <result column="user_id" property="userId"/>
++        <result column="activity_id" property="activityId"/>
++        <result column="month" property="month"/>
++        <result column="month_count" property="monthCount"/>
++        <result column="month_count_surplus" property="monthCountSurplus"/>
++        <result column="create_time" property="createTime"/>
++        <result column="update_time" property="updateTime"/>
++    </resultMap>
++
++    <insert id="insertActivityAccountMonth" parameterType="cn.bugstack.infrastructure.persistent.po.RaffleActivityAccountMonth">
++        insert into raffle_activity_account_month(
++        user_id, activity_id, month, month_count, month_count_surplus, create_time, update_time)
++        values (
++        #{userId}, #{activityId}, #{month}, #{monthCount}, #{monthCountSurplus}, now(), now())
++    </insert>
++
++    <select id="queryActivityAccountMonthByUserId" parameterType="cn.bugstack.infrastructure.persistent.po.RaffleActivityAccountMonth" resultMap="dataMap">
++        select user_id, activity_id, month, month_count, month_count_surplus
++        from raffle_activity_account_month
++        where user_id = #{userId} and activity_id = #{activityId} and month = #{month}
++    </select>
++
++    <update id="updateActivityAccountMonthSubtractionQuota" parameterType="cn.bugstack.infrastructure.persistent.po.RaffleActivityAccountMonth">
++        update raffle_activity_account_month
++        set month_count_surplus = month_count_surplus - 1, update_time = now()
++        where user_id = #{userId} and activity_id = #{activityId} and month = #{month} and month_count_surplus > 0
++    </update>
++
+ </mapper>
+diff --git a/big-market-app/src/main/resources/mybatis/mapper/user_raffle_order_mapper.xml b/big-market-app/src/main/resources/mybatis/mapper/user_raffle_order_mapper.xml
+index f6cd0c6..5642501 100644
+--- a/big-market-app/src/main/resources/mybatis/mapper/user_raffle_order_mapper.xml
++++ b/big-market-app/src/main/resources/mybatis/mapper/user_raffle_order_mapper.xml
+@@ -2,4 +2,32 @@
+ <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+ <mapper namespace="cn.bugstack.infrastructure.persistent.dao.IUserRaffleOrderDao">
+ 
++    <resultMap id="dataMap" type="cn.bugstack.infrastructure.persistent.po.UserRaffleOrder">
++        <id column="id" property="id"/>
++        <result column="user_id" property="userId"/>
++        <result column="activity_id" property="activityId"/>
++        <result column="activity_name" property="activityName"/>
++        <result column="strategy_id" property="strategyId"/>
++        <result column="order_id" property="orderId"/>
++        <result column="order_time" property="orderTime"/>
++        <result column="order_state" property="orderState"/>
++        <result column="create_time" property="createTime"/>
++        <result column="update_time" property="updateTime"/>
++    </resultMap>
++
++    <insert id="insert" parameterType="cn.bugstack.infrastructure.persistent.po.UserRaffleOrder">
++        insert into user_raffle_order(
++            user_id, activity_id, activity_name, strategy_id, order_id, order_time, order_state, create_time, update_time
++        )
++        values(
++            #{userId}, #{activityId}, #{activityName}, #{strategyId}, #{orderId}, #{orderTime}, #{orderState}, now(), now()
++        )
++    </insert>
++
++    <select id="queryNoUsedRaffleOrder" parameterType="cn.bugstack.infrastructure.persistent.po.UserRaffleOrder" resultMap="dataMap">
++        select user_id, activity_id, activity_name, strategy_id, order_id, order_time, order_state
++        from user_raffle_order
++        where user_id = #{userId} and activity_id = #{activityId} and order_state = 'create'
++    </select>
++
+ </mapper>
+diff --git a/big-market-app/src/test/java/cn/bugstack/test/domain/activity/RaffleOrderTest.java b/big-market-app/src/test/java/cn/bugstack/test/domain/activity/RaffleActivityAccountQuotaServiceTest.java
+similarity index 81%
+rename from big-market-app/src/test/java/cn/bugstack/test/domain/activity/RaffleOrderTest.java
+rename to big-market-app/src/test/java/cn/bugstack/test/domain/activity/RaffleActivityAccountQuotaServiceTest.java
+index e6bd781..336876d 100644
+--- a/big-market-app/src/test/java/cn/bugstack/test/domain/activity/RaffleOrderTest.java
++++ b/big-market-app/src/test/java/cn/bugstack/test/domain/activity/RaffleActivityAccountQuotaServiceTest.java
+@@ -1,7 +1,7 @@
+ package cn.bugstack.test.domain.activity;
+ 
+ import cn.bugstack.domain.activity.model.entity.SkuRechargeEntity;
+-import cn.bugstack.domain.activity.service.IRaffleOrder;
++import cn.bugstack.domain.activity.service.IRaffleActivityAccountQuotaService;
+ import cn.bugstack.domain.activity.service.armory.IActivityArmory;
+ import cn.bugstack.types.exception.AppException;
+ import lombok.extern.slf4j.Slf4j;
+@@ -17,16 +17,17 @@ import java.util.concurrent.CountDownLatch;
+ 
+ /**
+  * @author Fuzhengwei bugstack.cn @小傅哥
+- * @description 抽奖活动订单单测
+- * @create 2024-03-16 11:51
++ * @description 抽奖活动参与服务测试
++ * @create 2024-04-05 12:28
+  */
+ @Slf4j
+ @RunWith(SpringRunner.class)
+ @SpringBootTest
+-public class RaffleOrderTest {
++public class RaffleActivityAccountQuotaServiceTest {
++
+ 
+     @Resource
+-    private IRaffleOrder raffleOrder;
++    private IRaffleActivityAccountQuotaService raffleActivityAccountQuotaService;
+     @Resource
+     private IActivityArmory activityArmory;
+ 
+@@ -41,8 +42,8 @@ public class RaffleOrderTest {
+         skuRechargeEntity.setUserId("xiaofuge");
+         skuRechargeEntity.setSku(9011L);
+         // outBusinessNo 作为幂等仿重使用，同一个业务单号2次使用会抛出索引冲突 Duplicate entry '700091009111' for key 'uq_out_business_no' 确保唯一性。
+-        skuRechargeEntity.setOutBusinessNo("700091009111");
+-        String orderId = raffleOrder.createSkuRechargeOrder(skuRechargeEntity);
++        skuRechargeEntity.setOutBusinessNo("700091009119");
++        String orderId = raffleActivityAccountQuotaService.createOrder(skuRechargeEntity);
+         log.info("测试结果：{}", orderId);
+     }
+ 
+@@ -61,7 +62,7 @@ public class RaffleOrderTest {
+                 skuRechargeEntity.setSku(9011L);
+                 // outBusinessNo 作为幂等仿重使用，同一个业务单号2次使用会抛出索引冲突 Duplicate entry '700091009111' for key 'uq_out_business_no' 确保唯一性。
+                 skuRechargeEntity.setOutBusinessNo(RandomStringUtils.randomNumeric(12));
+-                String orderId = raffleOrder.createSkuRechargeOrder(skuRechargeEntity);
++                String orderId = raffleActivityAccountQuotaService.createOrder(skuRechargeEntity);
+                 log.info("测试结果：{}", orderId);
+             } catch (AppException e) {
+                 log.warn(e.getInfo());
+diff --git a/big-market-app/src/test/java/cn/bugstack/test/domain/activity/RaffleActivityPartakeServiceTest.java b/big-market-app/src/test/java/cn/bugstack/test/domain/activity/RaffleActivityPartakeServiceTest.java
+new file mode 100644
+index 0000000..63aef69
+--- /dev/null
++++ b/big-market-app/src/test/java/cn/bugstack/test/domain/activity/RaffleActivityPartakeServiceTest.java
+@@ -0,0 +1,40 @@
++package cn.bugstack.test.domain.activity;
++
++import cn.bugstack.domain.activity.model.entity.PartakeRaffleActivityEntity;
++import cn.bugstack.domain.activity.model.entity.UserRaffleOrderEntity;
++import cn.bugstack.domain.activity.service.IRaffleActivityPartakeService;
++import com.alibaba.fastjson.JSON;
++import lombok.extern.slf4j.Slf4j;
++import org.junit.Test;
++import org.junit.runner.RunWith;
++import org.springframework.boot.test.context.SpringBootTest;
++import org.springframework.test.context.junit4.SpringRunner;
++
++import javax.annotation.Resource;
++
++/**
++ * @author Fuzhengwei bugstack.cn @小傅哥
++ * @description 抽奖活动订单单测
++ * @create 2024-03-16 11:51
++ */
++@Slf4j
++@RunWith(SpringRunner.class)
++@SpringBootTest
++public class RaffleActivityPartakeServiceTest {
++
++    @Resource
++    private IRaffleActivityPartakeService raffleActivityPartakeService;
++
++    @Test
++    public void test_createOrder() {
++        // 请求参数
++        PartakeRaffleActivityEntity partakeRaffleActivityEntity = new PartakeRaffleActivityEntity();
++        partakeRaffleActivityEntity.setUserId("xiaofuge");
++        partakeRaffleActivityEntity.setActivityId(100301L);
++        // 调用接口
++        UserRaffleOrderEntity userRaffleOrder = raffleActivityPartakeService.createOrder(partakeRaffleActivityEntity);
++        log.info("请求参数：{}", JSON.toJSONString(partakeRaffleActivityEntity));
++        log.info("测试结果：{}", JSON.toJSONString(userRaffleOrder));
++    }
++
++}
+diff --git a/big-market-domain/src/main/java/cn/bugstack/domain/activity/model/aggregate/CreatePartakeOrderAggregate.java b/big-market-domain/src/main/java/cn/bugstack/domain/activity/model/aggregate/CreatePartakeOrderAggregate.java
+new file mode 100644
+index 0000000..b1a8160
+--- /dev/null
++++ b/big-market-domain/src/main/java/cn/bugstack/domain/activity/model/aggregate/CreatePartakeOrderAggregate.java
+@@ -0,0 +1,63 @@
++package cn.bugstack.domain.activity.model.aggregate;
++
++import cn.bugstack.domain.activity.model.entity.ActivityAccountDayEntity;
++import cn.bugstack.domain.activity.model.entity.ActivityAccountEntity;
++import cn.bugstack.domain.activity.model.entity.ActivityAccountMonthEntity;
++import cn.bugstack.domain.activity.model.entity.UserRaffleOrderEntity;
++import lombok.AllArgsConstructor;
++import lombok.Builder;
++import lombok.Data;
++import lombok.NoArgsConstructor;
++
++/**
++ * @author Fuzhengwei bugstack.cn @小傅哥
++ * @description 参与活动订单聚合对象
++ * @create 2024-04-05 08:31
++ */
++@Data
++@Builder
++@AllArgsConstructor
++@NoArgsConstructor
++public class CreatePartakeOrderAggregate {
++
++    /**
++     * 用户ID
++     */
++    private String userId;
++
++    /**
++     * 活动ID
++     */
++    private Long activityId;
++
++    /**
++     * 账户总额度
++     */
++    private ActivityAccountEntity activityAccountEntity;
++
++    /**
++     * 是否存在月账户
++     */
++    private boolean isExistAccountMonth = true;
++
++    /**
++     * 账户月额度
++     */
++    private ActivityAccountMonthEntity activityAccountMonthEntity;
++
++    /**
++     * 是否存在日账户
++     */
++    private boolean isExistAccountDay = true;
++
++    /**
++     * 账户日额度
++     */
++    private ActivityAccountDayEntity activityAccountDayEntity;
++
++    /**
++     * 抽奖单实体
++     */
++    private UserRaffleOrderEntity userRaffleOrderEntity;
++
++}
+diff --git a/big-market-domain/src/main/java/cn/bugstack/domain/activity/model/aggregate/CreateOrderAggregate.java b/big-market-domain/src/main/java/cn/bugstack/domain/activity/model/aggregate/CreateQuotaOrderAggregate.java
+similarity index 85%
+rename from big-market-domain/src/main/java/cn/bugstack/domain/activity/model/aggregate/CreateOrderAggregate.java
+rename to big-market-domain/src/main/java/cn/bugstack/domain/activity/model/aggregate/CreateQuotaOrderAggregate.java
+index 0484344..bc493f8 100644
+--- a/big-market-domain/src/main/java/cn/bugstack/domain/activity/model/aggregate/CreateOrderAggregate.java
++++ b/big-market-domain/src/main/java/cn/bugstack/domain/activity/model/aggregate/CreateQuotaOrderAggregate.java
+@@ -1,6 +1,5 @@
+ package cn.bugstack.domain.activity.model.aggregate;
+ 
+-import cn.bugstack.domain.activity.model.entity.ActivityAccountEntity;
+ import cn.bugstack.domain.activity.model.entity.ActivityOrderEntity;
+ import lombok.AllArgsConstructor;
+ import lombok.Builder;
+@@ -9,14 +8,14 @@ import lombok.NoArgsConstructor;
+ 
+ /**
+  * @author Fuzhengwei bugstack.cn @小傅哥
+- * @description 下单聚合对象
++ * @description 账户额度下单聚合对象
+  * @create 2024-03-16 10:32
+  */
+ @Data
+ @Builder
+ @AllArgsConstructor
+ @NoArgsConstructor
+-public class CreateOrderAggregate {
++public class CreateQuotaOrderAggregate {
+ 
+     /**
+      * 用户ID
+diff --git a/big-market-domain/src/main/java/cn/bugstack/domain/activity/model/entity/ActivityAccountDayEntity.java b/big-market-domain/src/main/java/cn/bugstack/domain/activity/model/entity/ActivityAccountDayEntity.java
+new file mode 100644
+index 0000000..3a3a6c8
+--- /dev/null
++++ b/big-market-domain/src/main/java/cn/bugstack/domain/activity/model/entity/ActivityAccountDayEntity.java
+@@ -0,0 +1,30 @@
++package cn.bugstack.domain.activity.model.entity;
++
++import lombok.AllArgsConstructor;
++import lombok.Builder;
++import lombok.Data;
++import lombok.NoArgsConstructor;
++
++/**
++ * @author Fuzhengwei bugstack.cn @小傅哥
++ * @description 活动账户（日）实体对象
++ * @create 2024-04-05 08:37
++ */
++@Data
++@Builder
++@AllArgsConstructor
++@NoArgsConstructor
++public class ActivityAccountDayEntity {
++
++    /** 用户ID */
++    private String userId;
++    /** 活动ID */
++    private Long activityId;
++    /** 日期（yyyy-mm-dd） */
++    private String day;
++    /** 日次数 */
++    private Integer dayCount;
++    /** 日次数-剩余 */
++    private Integer dayCountSurplus;
++
++}
+diff --git a/big-market-domain/src/main/java/cn/bugstack/domain/activity/model/entity/ActivityAccountEntity.java b/big-market-domain/src/main/java/cn/bugstack/domain/activity/model/entity/ActivityAccountEntity.java
+index 8a36a15..02d4400 100644
+--- a/big-market-domain/src/main/java/cn/bugstack/domain/activity/model/entity/ActivityAccountEntity.java
++++ b/big-market-domain/src/main/java/cn/bugstack/domain/activity/model/entity/ActivityAccountEntity.java
+@@ -7,7 +7,7 @@ import lombok.NoArgsConstructor;
+ 
+ /**
+  * @author Fuzhengwei bugstack.cn @小傅哥
+- * @description 活动账户实体对象
++ * @description 活动账户（总）实体对象
+  * @create 2024-03-16 10:43
+  */
+ @Data
+diff --git a/big-market-domain/src/main/java/cn/bugstack/domain/activity/model/entity/ActivityAccountMonthEntity.java b/big-market-domain/src/main/java/cn/bugstack/domain/activity/model/entity/ActivityAccountMonthEntity.java
+new file mode 100644
+index 0000000..b21821a
+--- /dev/null
++++ b/big-market-domain/src/main/java/cn/bugstack/domain/activity/model/entity/ActivityAccountMonthEntity.java
+@@ -0,0 +1,30 @@
++package cn.bugstack.domain.activity.model.entity;
++
++import lombok.AllArgsConstructor;
++import lombok.Builder;
++import lombok.Data;
++import lombok.NoArgsConstructor;
++
++/**
++ * @author Fuzhengwei bugstack.cn @小傅哥
++ * @description 活动账户（月）实体对象
++ * @create 2024-04-05 08:38
++ */
++@Data
++@Builder
++@AllArgsConstructor
++@NoArgsConstructor
++public class ActivityAccountMonthEntity {
++
++    /** 用户ID */
++    private String userId;
++    /** 活动ID */
++    private Long activityId;
++    /** 月（yyyy-mm） */
++    private String month;
++    /** 月次数 */
++    private Integer monthCount;
++    /** 月次数-剩余 */
++    private Integer monthCountSurplus;
++
++}
+diff --git a/big-market-domain/src/main/java/cn/bugstack/domain/activity/model/entity/PartakeRaffleActivityEntity.java b/big-market-domain/src/main/java/cn/bugstack/domain/activity/model/entity/PartakeRaffleActivityEntity.java
+new file mode 100644
+index 0000000..1ad61c7
+--- /dev/null
++++ b/big-market-domain/src/main/java/cn/bugstack/domain/activity/model/entity/PartakeRaffleActivityEntity.java
+@@ -0,0 +1,23 @@
++package cn.bugstack.domain.activity.model.entity;
++
++import lombok.Data;
++
++/**
++ * @author Fuzhengwei bugstack.cn @小傅哥
++ * @description 参与抽奖活动实体对象
++ * @create 2024-04-04 20:02
++ */
++@Data
++public class PartakeRaffleActivityEntity {
++
++    /**
++     * 用户ID
++     */
++    private String userId;
++
++    /**
++     * 活动ID
++     */
++    private Long activityId;
++
++}
+diff --git a/big-market-domain/src/main/java/cn/bugstack/domain/activity/model/entity/UserRaffleOrderEntity.java b/big-market-domain/src/main/java/cn/bugstack/domain/activity/model/entity/UserRaffleOrderEntity.java
+new file mode 100644
+index 0000000..6e53653
+--- /dev/null
++++ b/big-market-domain/src/main/java/cn/bugstack/domain/activity/model/entity/UserRaffleOrderEntity.java
+@@ -0,0 +1,37 @@
++package cn.bugstack.domain.activity.model.entity;
++
++import cn.bugstack.domain.activity.model.valobj.UserRaffleOrderStateVO;
++import lombok.AllArgsConstructor;
++import lombok.Builder;
++import lombok.Data;
++import lombok.NoArgsConstructor;
++
++import java.util.Date;
++
++/**
++ * @author Fuzhengwei bugstack.cn @小傅哥
++ * @description 用户抽奖订单实体对象
++ * @create 2024-04-04 18:53
++ */
++@Data
++@Builder
++@AllArgsConstructor
++@NoArgsConstructor
++public class UserRaffleOrderEntity {
++
++    /** 活动ID */
++    private String userId;
++    /** 活动名称 */
++    private Long activityId;
++    /** 抽奖策略ID */
++    private String activityName;
++    /** 订单ID */
++    private Long strategyId;
++    /** 下单时间 */
++    private String orderId;
++    /** 订单状态；create-创建、used-已使用、cancel-已作废 */
++    private Date orderTime;
++    /** 创建时间 */
++    private UserRaffleOrderStateVO orderState;
++
++}
+diff --git a/big-market-domain/src/main/java/cn/bugstack/domain/activity/model/valobj/UserRaffleOrderStateVO.java b/big-market-domain/src/main/java/cn/bugstack/domain/activity/model/valobj/UserRaffleOrderStateVO.java
+new file mode 100644
+index 0000000..18ebc41
+--- /dev/null
++++ b/big-market-domain/src/main/java/cn/bugstack/domain/activity/model/valobj/UserRaffleOrderStateVO.java
+@@ -0,0 +1,23 @@
++package cn.bugstack.domain.activity.model.valobj;
++
++import lombok.AllArgsConstructor;
++import lombok.Getter;
++
++/**
++ * @author Fuzhengwei bugstack.cn @小傅哥
++ * @description 用户抽奖订单状态枚举
++ * @create 2024-04-04 18:55
++ */
++@Getter
++@AllArgsConstructor
++public enum UserRaffleOrderStateVO {
++
++    create("create", "创建"),
++    used("used", "已使用"),
++    cancel("cancel", "已作废"),
++    ;
++
++    private final String code;
++    private final String desc;
++
++}
+diff --git a/big-market-domain/src/main/java/cn/bugstack/domain/activity/repository/IActivityRepository.java b/big-market-domain/src/main/java/cn/bugstack/domain/activity/repository/IActivityRepository.java
+index 67afaad..cf0658c 100644
+--- a/big-market-domain/src/main/java/cn/bugstack/domain/activity/repository/IActivityRepository.java
++++ b/big-market-domain/src/main/java/cn/bugstack/domain/activity/repository/IActivityRepository.java
+@@ -1,9 +1,8 @@
+ package cn.bugstack.domain.activity.repository;
+ 
+-import cn.bugstack.domain.activity.model.aggregate.CreateOrderAggregate;
+-import cn.bugstack.domain.activity.model.entity.ActivityCountEntity;
+-import cn.bugstack.domain.activity.model.entity.ActivityEntity;
+-import cn.bugstack.domain.activity.model.entity.ActivitySkuEntity;
++import cn.bugstack.domain.activity.model.aggregate.CreatePartakeOrderAggregate;
++import cn.bugstack.domain.activity.model.aggregate.CreateQuotaOrderAggregate;
++import cn.bugstack.domain.activity.model.entity.*;
+ import cn.bugstack.domain.activity.model.valobj.ActivitySkuStockKeyVO;
+ 
+ import java.util.Date;
+@@ -21,7 +20,7 @@ public interface IActivityRepository {
+ 
+     ActivityCountEntity queryRaffleActivityCountByActivityCountId(Long activityCountId);
+ 
+-    void doSaveOrder(CreateOrderAggregate createOrderAggregate);
++    void doSaveOrder(CreateQuotaOrderAggregate createOrderAggregate);
+ 
+     void cacheActivitySkuStockCount(String cacheKey, Integer stockCount);
+ 
+@@ -37,4 +36,14 @@ public interface IActivityRepository {
+ 
+     void clearActivitySkuStock(Long sku);
+ 
++    UserRaffleOrderEntity queryNoUsedRaffleOrder(PartakeRaffleActivityEntity partakeRaffleActivityEntity);
++
++    ActivityAccountEntity queryActivityAccountByUserId(String userId, Long activityId);
++
++    ActivityAccountMonthEntity queryActivityAccountMonthByUserId(String userId, Long activityId, String month);
++
++    ActivityAccountDayEntity queryActivityAccountDayByUserId(String userId, Long activityId, String day);
++
++    void saveCreatePartakeOrderAggregate(CreatePartakeOrderAggregate createPartakeOrderAggregate);
++
+ }
+diff --git a/big-market-domain/src/main/java/cn/bugstack/domain/activity/service/IRaffleOrder.java b/big-market-domain/src/main/java/cn/bugstack/domain/activity/service/IRaffleActivityAccountQuotaService.java
+similarity index 82%
+rename from big-market-domain/src/main/java/cn/bugstack/domain/activity/service/IRaffleOrder.java
+rename to big-market-domain/src/main/java/cn/bugstack/domain/activity/service/IRaffleActivityAccountQuotaService.java
+index bb582d3..d080645 100644
+--- a/big-market-domain/src/main/java/cn/bugstack/domain/activity/service/IRaffleOrder.java
++++ b/big-market-domain/src/main/java/cn/bugstack/domain/activity/service/IRaffleActivityAccountQuotaService.java
+@@ -4,10 +4,10 @@ import cn.bugstack.domain.activity.model.entity.SkuRechargeEntity;
+ 
+ /**
+  * @author Fuzhengwei bugstack.cn @小傅哥
+- * @description 抽奖活动订单接口
++ * @description 抽奖活动账户额度服务
+  * @create 2024-03-16 08:38
+  */
+-public interface IRaffleOrder {
++public interface IRaffleActivityAccountQuotaService {
+ 
+     /**
+      * 创建 sku 账户充值订单，给用户增加抽奖次数
+@@ -18,6 +18,6 @@ public interface IRaffleOrder {
+      * @param skuRechargeEntity 活动商品充值实体对象
+      * @return 活动ID
+      */
+-    String createSkuRechargeOrder(SkuRechargeEntity skuRechargeEntity);
++    String createOrder(SkuRechargeEntity skuRechargeEntity);
+ 
+ }
+diff --git a/big-market-domain/src/main/java/cn/bugstack/domain/activity/service/IRaffleActivityPartakeService.java b/big-market-domain/src/main/java/cn/bugstack/domain/activity/service/IRaffleActivityPartakeService.java
+new file mode 100644
+index 0000000..cd60fa4
+--- /dev/null
++++ b/big-market-domain/src/main/java/cn/bugstack/domain/activity/service/IRaffleActivityPartakeService.java
+@@ -0,0 +1,21 @@
++package cn.bugstack.domain.activity.service;
++
++import cn.bugstack.domain.activity.model.entity.PartakeRaffleActivityEntity;
++import cn.bugstack.domain.activity.model.entity.UserRaffleOrderEntity;
++
++/**
++ * @author Fuzhengwei bugstack.cn @小傅哥
++ * @description 抽奖活动参与服务
++ * @create 2024-04-04 19:50
++ */
++public interface IRaffleActivityPartakeService {
++
++    /**
++     * 创建抽奖单；用户参与抽奖活动，扣减活动账户库存，产生抽奖单。如存在未被使用的抽奖单则直接返回已存在的抽奖单。
++     *
++     * @param partakeRaffleActivityEntity 参与抽奖活动实体对象
++     * @return 用户抽奖订单实体对象
++     */
++    UserRaffleOrderEntity createOrder(PartakeRaffleActivityEntity partakeRaffleActivityEntity);
++
++}
+diff --git a/big-market-domain/src/main/java/cn/bugstack/domain/activity/service/ISkuStock.java b/big-market-domain/src/main/java/cn/bugstack/domain/activity/service/IRaffleActivitySkuStockService.java
+similarity index 89%
+rename from big-market-domain/src/main/java/cn/bugstack/domain/activity/service/ISkuStock.java
+rename to big-market-domain/src/main/java/cn/bugstack/domain/activity/service/IRaffleActivitySkuStockService.java
+index d60ad00..a802b42 100644
+--- a/big-market-domain/src/main/java/cn/bugstack/domain/activity/service/ISkuStock.java
++++ b/big-market-domain/src/main/java/cn/bugstack/domain/activity/service/IRaffleActivitySkuStockService.java
+@@ -4,10 +4,10 @@ import cn.bugstack.domain.activity.model.valobj.ActivitySkuStockKeyVO;
+ 
+ /**
+  * @author Fuzhengwei bugstack.cn @小傅哥
+- * @description 活动sku库存处理接口
++ * @description 抽奖活动SKU库存服务
+  * @create 2024-03-30 09:55
+  */
+-public interface ISkuStock {
++public interface IRaffleActivitySkuStockService {
+ 
+     /**
+      * 获取活动sku库存消耗队列
+diff --git a/big-market-domain/src/main/java/cn/bugstack/domain/activity/service/armory/ActivityArmory.java b/big-market-domain/src/main/java/cn/bugstack/domain/activity/service/armory/ActivityArmory.java
+index fe1e282..c26465c 100644
+--- a/big-market-domain/src/main/java/cn/bugstack/domain/activity/service/armory/ActivityArmory.java
++++ b/big-market-domain/src/main/java/cn/bugstack/domain/activity/service/armory/ActivityArmory.java
+@@ -28,7 +28,7 @@ public class ActivityArmory implements IActivityArmory, IActivityDispatch {
+     public boolean assembleActivitySku(Long sku) {
+         // 预热活动sku库存
+         ActivitySkuEntity activitySkuEntity = activityRepository.queryActivitySku(sku);
+-        cacheActivitySkuStockCount(sku, activitySkuEntity.getStockCount());
++        cacheActivitySkuStockCount(sku, activitySkuEntity.getStockCountSurplus());
+ 
+         // 预热活动【查询时预热到缓存】
+         activityRepository.queryRaffleActivityByActivityId(activitySkuEntity.getActivityId());
+diff --git a/big-market-domain/src/main/java/cn/bugstack/domain/activity/service/partake/AbstractRaffleActivityPartake.java b/big-market-domain/src/main/java/cn/bugstack/domain/activity/service/partake/AbstractRaffleActivityPartake.java
+new file mode 100644
+index 0000000..a64ca84
+--- /dev/null
++++ b/big-market-domain/src/main/java/cn/bugstack/domain/activity/service/partake/AbstractRaffleActivityPartake.java
+@@ -0,0 +1,77 @@
++package cn.bugstack.domain.activity.service.partake;
++
++import cn.bugstack.domain.activity.model.aggregate.CreatePartakeOrderAggregate;
++import cn.bugstack.domain.activity.model.entity.ActivityEntity;
++import cn.bugstack.domain.activity.model.entity.PartakeRaffleActivityEntity;
++import cn.bugstack.domain.activity.model.entity.UserRaffleOrderEntity;
++import cn.bugstack.domain.activity.model.valobj.ActivityStateVO;
++import cn.bugstack.domain.activity.repository.IActivityRepository;
++import cn.bugstack.domain.activity.service.IRaffleActivityPartakeService;
++import cn.bugstack.types.enums.ResponseCode;
++import cn.bugstack.types.exception.AppException;
++import com.alibaba.fastjson.JSON;
++import lombok.extern.slf4j.Slf4j;
++
++import java.util.Date;
++
++/**
++ * @author Fuzhengwei bugstack.cn @小傅哥
++ * @description 抽奖活动参与抽奖类
++ * @create 2024-04-05 07:53
++ */
++@Slf4j
++public abstract class AbstractRaffleActivityPartake implements IRaffleActivityPartakeService {
++
++    protected final IActivityRepository activityRepository;
++
++    public AbstractRaffleActivityPartake(IActivityRepository activityRepository) {
++        this.activityRepository = activityRepository;
++    }
++
++    @Override
++    public UserRaffleOrderEntity createOrder(PartakeRaffleActivityEntity partakeRaffleActivityEntity) {
++        // 0. 基础信息
++        String userId = partakeRaffleActivityEntity.getUserId();
++        Long activityId = partakeRaffleActivityEntity.getActivityId();
++        Date currentDate = new Date();
++
++        // 1. 活动查询
++        ActivityEntity activityEntity = activityRepository.queryRaffleActivityByActivityId(activityId);
++
++        // 校验；活动状态
++        if (!ActivityStateVO.open.equals(activityEntity.getState())) {
++            throw new AppException(ResponseCode.ACTIVITY_STATE_ERROR.getCode(), ResponseCode.ACTIVITY_STATE_ERROR.getInfo());
++        }
++        // 校验；活动日期「开始时间 <- 当前时间 -> 结束时间」
++        if (activityEntity.getBeginDateTime().after(currentDate) || activityEntity.getEndDateTime().before(currentDate)) {
++            throw new AppException(ResponseCode.ACTIVITY_DATE_ERROR.getCode(), ResponseCode.ACTIVITY_DATE_ERROR.getInfo());
++        }
++
++        // 2. 查询未被使用的活动参与订单记录
++        UserRaffleOrderEntity userRaffleOrderEntity = activityRepository.queryNoUsedRaffleOrder(partakeRaffleActivityEntity);
++        if (null != userRaffleOrderEntity) {
++            log.info("创建参与活动订单 userId:{} activityId:{} userRaffleOrderEntity:{}", userId, activityId, JSON.toJSONString(userRaffleOrderEntity));
++            return userRaffleOrderEntity;
++        }
++
++        // 3. 额度账户过滤&返回账户构建对象
++        CreatePartakeOrderAggregate createPartakeOrderAggregate = this.doFilterAccount(userId, activityId, currentDate);
++
++        // 4. 构建订单
++        UserRaffleOrderEntity userRaffleOrder = this.buildUserRaffleOrder(userId, activityId, currentDate);
++
++        // 5. 填充抽奖单实体对象
++        createPartakeOrderAggregate.setUserRaffleOrderEntity(userRaffleOrder);
++
++        // 6. 保存聚合对象 - 一个领域内的一个聚合是一个事务操作
++        activityRepository.saveCreatePartakeOrderAggregate(createPartakeOrderAggregate);
++
++        // 7. 返回订单信息
++        return userRaffleOrder;
++    }
++
++    protected abstract CreatePartakeOrderAggregate doFilterAccount(String userId, Long activityId, Date currentDate);
++
++    protected abstract UserRaffleOrderEntity buildUserRaffleOrder(String userId, Long activityId, Date currentDate);
++
++}
+diff --git a/big-market-domain/src/main/java/cn/bugstack/domain/activity/service/partake/RaffleActivityPartakeService.java b/big-market-domain/src/main/java/cn/bugstack/domain/activity/service/partake/RaffleActivityPartakeService.java
+new file mode 100644
+index 0000000..341c21f
+--- /dev/null
++++ b/big-market-domain/src/main/java/cn/bugstack/domain/activity/service/partake/RaffleActivityPartakeService.java
+@@ -0,0 +1,105 @@
++package cn.bugstack.domain.activity.service.partake;
++
++import cn.bugstack.domain.activity.model.aggregate.CreatePartakeOrderAggregate;
++import cn.bugstack.domain.activity.model.entity.*;
++import cn.bugstack.domain.activity.model.valobj.UserRaffleOrderStateVO;
++import cn.bugstack.domain.activity.repository.IActivityRepository;
++import cn.bugstack.types.enums.ResponseCode;
++import cn.bugstack.types.exception.AppException;
++import org.apache.commons.lang3.RandomStringUtils;
++import org.springframework.stereotype.Service;
++
++import java.text.SimpleDateFormat;
++import java.util.Date;
++
++/**
++ * @author Fuzhengwei bugstack.cn @小傅哥
++ * @description
++ * @create 2024-04-05 07:53
++ */
++@Service
++public class RaffleActivityPartakeService extends AbstractRaffleActivityPartake{
++
++    private final SimpleDateFormat dateFormatMonth = new SimpleDateFormat("yyyy-MM");
++    private final SimpleDateFormat dateFormatDay = new SimpleDateFormat("yyyy-MM-dd");
++
++    public RaffleActivityPartakeService(IActivityRepository activityRepository) {
++        super(activityRepository);
++    }
++
++    @Override
++    protected CreatePartakeOrderAggregate doFilterAccount(String userId, Long activityId, Date currentDate) {
++        // 查询总账户额度
++        ActivityAccountEntity activityAccountEntity = activityRepository.queryActivityAccountByUserId(userId, activityId);
++
++        // 额度判断（只判断总剩余额度）
++        if (null == activityAccountEntity || activityAccountEntity.getTotalCountSurplus() <= 0) {
++            throw new AppException(ResponseCode.ACCOUNT_QUOTA_ERROR.getCode(), ResponseCode.ACCOUNT_QUOTA_ERROR.getInfo());
++        }
++
++        String month = dateFormatMonth.format(currentDate);
++        String day = dateFormatDay.format(currentDate);
++
++        // 查询月账户额度
++        ActivityAccountMonthEntity activityAccountMonthEntity = activityRepository.queryActivityAccountMonthByUserId(userId, activityId, month);
++        if (null != activityAccountMonthEntity && activityAccountMonthEntity.getMonthCountSurplus() <= 0) {
++            throw new AppException(ResponseCode.ACCOUNT_MONTH_QUOTA_ERROR.getCode(), ResponseCode.ACCOUNT_MONTH_QUOTA_ERROR.getInfo());
++        }
++
++        // 创建月账户额度；true = 存在月账户、false = 不存在月账户
++        boolean isExistAccountMonth = null != activityAccountMonthEntity;
++        if (null == activityAccountMonthEntity) {
++            activityAccountMonthEntity = new ActivityAccountMonthEntity();
++            activityAccountMonthEntity.setUserId(userId);
++            activityAccountMonthEntity.setActivityId(activityId);
++            activityAccountMonthEntity.setMonth(month);
++            activityAccountMonthEntity.setMonthCount(activityAccountEntity.getMonthCount());
++            activityAccountMonthEntity.setMonthCountSurplus(activityAccountEntity.getMonthCountSurplus());
++        }
++
++        // 查询日账户额度
++        ActivityAccountDayEntity activityAccountDayEntity = activityRepository.queryActivityAccountDayByUserId(userId, activityId, day);
++        if (null != activityAccountDayEntity && activityAccountDayEntity.getDayCountSurplus() <= 0) {
++            throw new AppException(ResponseCode.ACCOUNT_DAY_QUOTA_ERROR.getCode(), ResponseCode.ACCOUNT_DAY_QUOTA_ERROR.getInfo());
++        }
++
++        // 创建月账户额度；true = 存在月账户、false = 不存在月账户
++        boolean isExistAccountDay = null != activityAccountDayEntity;
++        if (null == activityAccountDayEntity) {
++            activityAccountDayEntity = new ActivityAccountDayEntity();
++            activityAccountDayEntity.setUserId(userId);
++            activityAccountDayEntity.setActivityId(activityId);
++            activityAccountDayEntity.setDay(day);
++            activityAccountDayEntity.setDayCount(activityAccountEntity.getDayCount());
++            activityAccountDayEntity.setDayCountSurplus(activityAccountEntity.getDayCountSurplus());
++        }
++
++        // 构建对象
++        CreatePartakeOrderAggregate createPartakeOrderAggregate = new CreatePartakeOrderAggregate();
++        createPartakeOrderAggregate.setUserId(userId);
++        createPartakeOrderAggregate.setActivityId(activityId);
++        createPartakeOrderAggregate.setActivityAccountEntity(activityAccountEntity);
++        createPartakeOrderAggregate.setExistAccountMonth(isExistAccountMonth);
++        createPartakeOrderAggregate.setActivityAccountMonthEntity(activityAccountMonthEntity);
++        createPartakeOrderAggregate.setExistAccountDay(isExistAccountDay);
++        createPartakeOrderAggregate.setActivityAccountDayEntity(activityAccountDayEntity);
++
++        return createPartakeOrderAggregate;
++    }
++
++    @Override
++    protected UserRaffleOrderEntity buildUserRaffleOrder(String userId, Long activityId, Date currentDate) {
++        ActivityEntity activityEntity = activityRepository.queryRaffleActivityByActivityId(activityId);
++        // 构建订单
++        UserRaffleOrderEntity userRaffleOrder = new UserRaffleOrderEntity();
++        userRaffleOrder.setUserId(userId);
++        userRaffleOrder.setActivityId(activityId);
++        userRaffleOrder.setActivityName(activityEntity.getActivityName());
++        userRaffleOrder.setStrategyId(activityEntity.getStrategyId());
++        userRaffleOrder.setOrderId(RandomStringUtils.randomNumeric(12));
++        userRaffleOrder.setOrderTime(currentDate);
++        userRaffleOrder.setOrderState(UserRaffleOrderStateVO.create);
++        return userRaffleOrder;
++    }
++
++}
+diff --git a/big-market-domain/src/main/java/cn/bugstack/domain/activity/service/AbstractRaffleActivity.java b/big-market-domain/src/main/java/cn/bugstack/domain/activity/service/quota/AbstractRaffleActivityAccountQuota.java
+similarity index 61%
+rename from big-market-domain/src/main/java/cn/bugstack/domain/activity/service/AbstractRaffleActivity.java
+rename to big-market-domain/src/main/java/cn/bugstack/domain/activity/service/quota/AbstractRaffleActivityAccountQuota.java
+index e9e05e0..841929b 100644
+--- a/big-market-domain/src/main/java/cn/bugstack/domain/activity/service/AbstractRaffleActivity.java
++++ b/big-market-domain/src/main/java/cn/bugstack/domain/activity/service/quota/AbstractRaffleActivityAccountQuota.java
+@@ -1,10 +1,11 @@
+-package cn.bugstack.domain.activity.service;
++package cn.bugstack.domain.activity.service.quota;
+ 
+-import cn.bugstack.domain.activity.model.aggregate.CreateOrderAggregate;
++import cn.bugstack.domain.activity.model.aggregate.CreateQuotaOrderAggregate;
+ import cn.bugstack.domain.activity.model.entity.*;
+ import cn.bugstack.domain.activity.repository.IActivityRepository;
+-import cn.bugstack.domain.activity.service.rule.IActionChain;
+-import cn.bugstack.domain.activity.service.rule.factory.DefaultActivityChainFactory;
++import cn.bugstack.domain.activity.service.IRaffleActivityAccountQuotaService;
++import cn.bugstack.domain.activity.service.quota.rule.IActionChain;
++import cn.bugstack.domain.activity.service.quota.rule.factory.DefaultActivityChainFactory;
+ import cn.bugstack.types.enums.ResponseCode;
+ import cn.bugstack.types.exception.AppException;
+ import lombok.extern.slf4j.Slf4j;
+@@ -16,14 +17,14 @@ import org.apache.commons.lang3.StringUtils;
+  * @create 2024-03-16 08:42
+  */
+ @Slf4j
+-public abstract class AbstractRaffleActivity extends RaffleActivitySupport implements IRaffleOrder {
++public abstract class AbstractRaffleActivityAccountQuota extends RaffleActivityAccountQuotaSupport implements IRaffleActivityAccountQuotaService {
+ 
+-    public AbstractRaffleActivity(IActivityRepository activityRepository, DefaultActivityChainFactory defaultActivityChainFactory) {
++    public AbstractRaffleActivityAccountQuota(IActivityRepository activityRepository, DefaultActivityChainFactory defaultActivityChainFactory) {
+         super(activityRepository, defaultActivityChainFactory);
+     }
+ 
+     @Override
+-    public String createSkuRechargeOrder(SkuRechargeEntity skuRechargeEntity) {
++    public String createOrder(SkuRechargeEntity skuRechargeEntity) {
+         // 1. 参数校验
+         String userId = skuRechargeEntity.getUserId();
+         Long sku = skuRechargeEntity.getSku();
+@@ -45,7 +46,7 @@ public abstract class AbstractRaffleActivity extends RaffleActivitySupport imple
+         actionChain.action(activitySkuEntity, activityEntity, activityCountEntity);
+ 
+         // 4. 构建订单聚合对象
+-        CreateOrderAggregate createOrderAggregate = buildOrderAggregate(skuRechargeEntity, activitySkuEntity, activityEntity, activityCountEntity);
++        CreateQuotaOrderAggregate createOrderAggregate = buildOrderAggregate(skuRechargeEntity, activitySkuEntity, activityEntity, activityCountEntity);
+ 
+         // 5. 保存订单
+         doSaveOrder(createOrderAggregate);
+@@ -54,8 +55,8 @@ public abstract class AbstractRaffleActivity extends RaffleActivitySupport imple
+         return createOrderAggregate.getActivityOrderEntity().getOrderId();
+     }
+ 
+-    protected abstract CreateOrderAggregate buildOrderAggregate(SkuRechargeEntity skuRechargeEntity, ActivitySkuEntity activitySkuEntity, ActivityEntity activityEntity, ActivityCountEntity activityCountEntity);
++    protected abstract CreateQuotaOrderAggregate buildOrderAggregate(SkuRechargeEntity skuRechargeEntity, ActivitySkuEntity activitySkuEntity, ActivityEntity activityEntity, ActivityCountEntity activityCountEntity);
+ 
+-    protected abstract void doSaveOrder(CreateOrderAggregate createOrderAggregate);
++    protected abstract void doSaveOrder(CreateQuotaOrderAggregate createOrderAggregate);
+ 
+ }
+diff --git a/big-market-domain/src/main/java/cn/bugstack/domain/activity/service/RaffleActivityService.java b/big-market-domain/src/main/java/cn/bugstack/domain/activity/service/quota/RaffleActivityAccountQuotaService.java
+similarity index 74%
+rename from big-market-domain/src/main/java/cn/bugstack/domain/activity/service/RaffleActivityService.java
+rename to big-market-domain/src/main/java/cn/bugstack/domain/activity/service/quota/RaffleActivityAccountQuotaService.java
+index 16958e1..555dfe3 100644
+--- a/big-market-domain/src/main/java/cn/bugstack/domain/activity/service/RaffleActivityService.java
++++ b/big-market-domain/src/main/java/cn/bugstack/domain/activity/service/quota/RaffleActivityAccountQuotaService.java
+@@ -1,11 +1,12 @@
+-package cn.bugstack.domain.activity.service;
++package cn.bugstack.domain.activity.service.quota;
+ 
+-import cn.bugstack.domain.activity.model.aggregate.CreateOrderAggregate;
++import cn.bugstack.domain.activity.model.aggregate.CreateQuotaOrderAggregate;
+ import cn.bugstack.domain.activity.model.entity.*;
+ import cn.bugstack.domain.activity.model.valobj.ActivitySkuStockKeyVO;
+ import cn.bugstack.domain.activity.model.valobj.OrderStateVO;
+ import cn.bugstack.domain.activity.repository.IActivityRepository;
+-import cn.bugstack.domain.activity.service.rule.factory.DefaultActivityChainFactory;
++import cn.bugstack.domain.activity.service.IRaffleActivitySkuStockService;
++import cn.bugstack.domain.activity.service.quota.rule.factory.DefaultActivityChainFactory;
+ import org.apache.commons.lang3.RandomStringUtils;
+ import org.springframework.stereotype.Service;
+ 
+@@ -17,14 +18,14 @@ import java.util.Date;
+  * @create 2024-03-16 08:41
+  */
+ @Service
+-public class RaffleActivityService extends AbstractRaffleActivity implements ISkuStock {
++public class RaffleActivityAccountQuotaService extends AbstractRaffleActivityAccountQuota implements IRaffleActivitySkuStockService {
+ 
+-    public RaffleActivityService(IActivityRepository activityRepository, DefaultActivityChainFactory defaultActivityChainFactory) {
++    public RaffleActivityAccountQuotaService(IActivityRepository activityRepository, DefaultActivityChainFactory defaultActivityChainFactory) {
+         super(activityRepository, defaultActivityChainFactory);
+     }
+ 
+     @Override
+-    protected CreateOrderAggregate buildOrderAggregate(SkuRechargeEntity skuRechargeEntity, ActivitySkuEntity activitySkuEntity, ActivityEntity activityEntity, ActivityCountEntity activityCountEntity) {
++    protected CreateQuotaOrderAggregate buildOrderAggregate(SkuRechargeEntity skuRechargeEntity, ActivitySkuEntity activitySkuEntity, ActivityEntity activityEntity, ActivityCountEntity activityCountEntity) {
+         // 订单实体对象
+         ActivityOrderEntity activityOrderEntity = new ActivityOrderEntity();
+         activityOrderEntity.setUserId(skuRechargeEntity.getUserId());
+@@ -42,7 +43,7 @@ public class RaffleActivityService extends AbstractRaffleActivity implements ISk
+         activityOrderEntity.setOutBusinessNo(skuRechargeEntity.getOutBusinessNo());
+ 
+         // 构建聚合对象
+-        return CreateOrderAggregate.builder()
++        return CreateQuotaOrderAggregate.builder()
+                 .userId(skuRechargeEntity.getUserId())
+                 .activityId(activitySkuEntity.getActivityId())
+                 .totalCount(activityCountEntity.getTotalCount())
+@@ -53,7 +54,7 @@ public class RaffleActivityService extends AbstractRaffleActivity implements ISk
+     }
+ 
+     @Override
+-    protected void doSaveOrder(CreateOrderAggregate createOrderAggregate) {
++    protected void doSaveOrder(CreateQuotaOrderAggregate createOrderAggregate) {
+         activityRepository.doSaveOrder(createOrderAggregate);
+     }
+ 
+diff --git a/big-market-domain/src/main/java/cn/bugstack/domain/activity/service/RaffleActivitySupport.java b/big-market-domain/src/main/java/cn/bugstack/domain/activity/service/quota/RaffleActivityAccountQuotaSupport.java
+similarity index 77%
+rename from big-market-domain/src/main/java/cn/bugstack/domain/activity/service/RaffleActivitySupport.java
+rename to big-market-domain/src/main/java/cn/bugstack/domain/activity/service/quota/RaffleActivityAccountQuotaSupport.java
+index 41ea8ed..e6a8cc0 100644
+--- a/big-market-domain/src/main/java/cn/bugstack/domain/activity/service/RaffleActivitySupport.java
++++ b/big-market-domain/src/main/java/cn/bugstack/domain/activity/service/quota/RaffleActivityAccountQuotaSupport.java
+@@ -1,23 +1,23 @@
+-package cn.bugstack.domain.activity.service;
++package cn.bugstack.domain.activity.service.quota;
+ 
+ import cn.bugstack.domain.activity.model.entity.ActivityCountEntity;
+ import cn.bugstack.domain.activity.model.entity.ActivityEntity;
+ import cn.bugstack.domain.activity.model.entity.ActivitySkuEntity;
+ import cn.bugstack.domain.activity.repository.IActivityRepository;
+-import cn.bugstack.domain.activity.service.rule.factory.DefaultActivityChainFactory;
++import cn.bugstack.domain.activity.service.quota.rule.factory.DefaultActivityChainFactory;
+ 
+ /**
+  * @author Fuzhengwei bugstack.cn @小傅哥
+  * @description 抽奖活动的支撑类
+  * @create 2024-03-23 09:27
+  */
+-public class RaffleActivitySupport {
++public class RaffleActivityAccountQuotaSupport {
+ 
+     protected DefaultActivityChainFactory defaultActivityChainFactory;
+ 
+     protected IActivityRepository activityRepository;
+ 
+-    public RaffleActivitySupport(IActivityRepository activityRepository, DefaultActivityChainFactory defaultActivityChainFactory) {
++    public RaffleActivityAccountQuotaSupport(IActivityRepository activityRepository, DefaultActivityChainFactory defaultActivityChainFactory) {
+         this.activityRepository = activityRepository;
+         this.defaultActivityChainFactory = defaultActivityChainFactory;
+     }
+diff --git a/big-market-domain/src/main/java/cn/bugstack/domain/activity/service/rule/AbstractActionChain.java b/big-market-domain/src/main/java/cn/bugstack/domain/activity/service/quota/rule/AbstractActionChain.java
+similarity index 88%
+rename from big-market-domain/src/main/java/cn/bugstack/domain/activity/service/rule/AbstractActionChain.java
+rename to big-market-domain/src/main/java/cn/bugstack/domain/activity/service/quota/rule/AbstractActionChain.java
+index e42ba0f..daffd94 100644
+--- a/big-market-domain/src/main/java/cn/bugstack/domain/activity/service/rule/AbstractActionChain.java
++++ b/big-market-domain/src/main/java/cn/bugstack/domain/activity/service/quota/rule/AbstractActionChain.java
+@@ -1,4 +1,4 @@
+-package cn.bugstack.domain.activity.service.rule;
++package cn.bugstack.domain.activity.service.quota.rule;
+ 
+ /**
+  * @author Fuzhengwei bugstack.cn @小傅哥
+diff --git a/big-market-domain/src/main/java/cn/bugstack/domain/activity/service/rule/IActionChain.java b/big-market-domain/src/main/java/cn/bugstack/domain/activity/service/quota/rule/IActionChain.java
+similarity index 90%
+rename from big-market-domain/src/main/java/cn/bugstack/domain/activity/service/rule/IActionChain.java
+rename to big-market-domain/src/main/java/cn/bugstack/domain/activity/service/quota/rule/IActionChain.java
+index e5c8878..defc1a7 100644
+--- a/big-market-domain/src/main/java/cn/bugstack/domain/activity/service/rule/IActionChain.java
++++ b/big-market-domain/src/main/java/cn/bugstack/domain/activity/service/quota/rule/IActionChain.java
+@@ -1,4 +1,4 @@
+-package cn.bugstack.domain.activity.service.rule;
++package cn.bugstack.domain.activity.service.quota.rule;
+ 
+ import cn.bugstack.domain.activity.model.entity.ActivityCountEntity;
+ import cn.bugstack.domain.activity.model.entity.ActivityEntity;
+diff --git a/big-market-domain/src/main/java/cn/bugstack/domain/activity/service/rule/IActionChainArmory.java b/big-market-domain/src/main/java/cn/bugstack/domain/activity/service/quota/rule/IActionChainArmory.java
+similarity index 79%
+rename from big-market-domain/src/main/java/cn/bugstack/domain/activity/service/rule/IActionChainArmory.java
+rename to big-market-domain/src/main/java/cn/bugstack/domain/activity/service/quota/rule/IActionChainArmory.java
+index 59b964f..3f7721e 100644
+--- a/big-market-domain/src/main/java/cn/bugstack/domain/activity/service/rule/IActionChainArmory.java
++++ b/big-market-domain/src/main/java/cn/bugstack/domain/activity/service/quota/rule/IActionChainArmory.java
+@@ -1,4 +1,4 @@
+-package cn.bugstack.domain.activity.service.rule;
++package cn.bugstack.domain.activity.service.quota.rule;
+ 
+ /**
+  * @author Fuzhengwei bugstack.cn @小傅哥
+diff --git a/big-market-domain/src/main/java/cn/bugstack/domain/activity/service/rule/factory/DefaultActivityChainFactory.java b/big-market-domain/src/main/java/cn/bugstack/domain/activity/service/quota/rule/factory/DefaultActivityChainFactory.java
+similarity index 90%
+rename from big-market-domain/src/main/java/cn/bugstack/domain/activity/service/rule/factory/DefaultActivityChainFactory.java
+rename to big-market-domain/src/main/java/cn/bugstack/domain/activity/service/quota/rule/factory/DefaultActivityChainFactory.java
+index 32bee0a..50caa28 100644
+--- a/big-market-domain/src/main/java/cn/bugstack/domain/activity/service/rule/factory/DefaultActivityChainFactory.java
++++ b/big-market-domain/src/main/java/cn/bugstack/domain/activity/service/quota/rule/factory/DefaultActivityChainFactory.java
+@@ -1,6 +1,6 @@
+-package cn.bugstack.domain.activity.service.rule.factory;
++package cn.bugstack.domain.activity.service.quota.rule.factory;
+ 
+-import cn.bugstack.domain.activity.service.rule.IActionChain;
++import cn.bugstack.domain.activity.service.quota.rule.IActionChain;
+ import lombok.AllArgsConstructor;
+ import lombok.Getter;
+ import org.springframework.stereotype.Service;
+diff --git a/big-market-domain/src/main/java/cn/bugstack/domain/activity/service/rule/impl/ActivityBaseActionChain.java b/big-market-domain/src/main/java/cn/bugstack/domain/activity/service/quota/rule/impl/ActivityBaseActionChain.java
+similarity index 93%
+rename from big-market-domain/src/main/java/cn/bugstack/domain/activity/service/rule/impl/ActivityBaseActionChain.java
+rename to big-market-domain/src/main/java/cn/bugstack/domain/activity/service/quota/rule/impl/ActivityBaseActionChain.java
+index a6a99ef..3a1ab51 100644
+--- a/big-market-domain/src/main/java/cn/bugstack/domain/activity/service/rule/impl/ActivityBaseActionChain.java
++++ b/big-market-domain/src/main/java/cn/bugstack/domain/activity/service/quota/rule/impl/ActivityBaseActionChain.java
+@@ -1,10 +1,10 @@
+-package cn.bugstack.domain.activity.service.rule.impl;
++package cn.bugstack.domain.activity.service.quota.rule.impl;
+ 
+ import cn.bugstack.domain.activity.model.entity.ActivityCountEntity;
+ import cn.bugstack.domain.activity.model.entity.ActivityEntity;
+ import cn.bugstack.domain.activity.model.entity.ActivitySkuEntity;
+ import cn.bugstack.domain.activity.model.valobj.ActivityStateVO;
+-import cn.bugstack.domain.activity.service.rule.AbstractActionChain;
++import cn.bugstack.domain.activity.service.quota.rule.AbstractActionChain;
+ import cn.bugstack.types.enums.ResponseCode;
+ import cn.bugstack.types.exception.AppException;
+ import lombok.extern.slf4j.Slf4j;
+diff --git a/big-market-domain/src/main/java/cn/bugstack/domain/activity/service/rule/impl/ActivitySkuStockActionChain.java b/big-market-domain/src/main/java/cn/bugstack/domain/activity/service/quota/rule/impl/ActivitySkuStockActionChain.java
+similarity index 94%
+rename from big-market-domain/src/main/java/cn/bugstack/domain/activity/service/rule/impl/ActivitySkuStockActionChain.java
+rename to big-market-domain/src/main/java/cn/bugstack/domain/activity/service/quota/rule/impl/ActivitySkuStockActionChain.java
+index dccc221..89e7575 100644
+--- a/big-market-domain/src/main/java/cn/bugstack/domain/activity/service/rule/impl/ActivitySkuStockActionChain.java
++++ b/big-market-domain/src/main/java/cn/bugstack/domain/activity/service/quota/rule/impl/ActivitySkuStockActionChain.java
+@@ -1,4 +1,4 @@
+-package cn.bugstack.domain.activity.service.rule.impl;
++package cn.bugstack.domain.activity.service.quota.rule.impl;
+ 
+ import cn.bugstack.domain.activity.model.entity.ActivityCountEntity;
+ import cn.bugstack.domain.activity.model.entity.ActivityEntity;
+@@ -6,7 +6,7 @@ import cn.bugstack.domain.activity.model.entity.ActivitySkuEntity;
+ import cn.bugstack.domain.activity.model.valobj.ActivitySkuStockKeyVO;
+ import cn.bugstack.domain.activity.repository.IActivityRepository;
+ import cn.bugstack.domain.activity.service.armory.IActivityDispatch;
+-import cn.bugstack.domain.activity.service.rule.AbstractActionChain;
++import cn.bugstack.domain.activity.service.quota.rule.AbstractActionChain;
+ import cn.bugstack.types.enums.ResponseCode;
+ import cn.bugstack.types.exception.AppException;
+ import lombok.extern.slf4j.Slf4j;
+diff --git a/big-market-domain/src/main/java/cn/bugstack/domain/strategy/service/armory/StrategyArmoryDispatch.java b/big-market-domain/src/main/java/cn/bugstack/domain/strategy/service/armory/StrategyArmoryDispatch.java
+index fc64a94..ce8ca73 100644
+--- a/big-market-domain/src/main/java/cn/bugstack/domain/strategy/service/armory/StrategyArmoryDispatch.java
++++ b/big-market-domain/src/main/java/cn/bugstack/domain/strategy/service/armory/StrategyArmoryDispatch.java
+@@ -37,7 +37,7 @@ public class StrategyArmoryDispatch implements IStrategyArmory, IStrategyDispatc
+         // 2 缓存奖品库存【用于decr扣减库存使用】
+         for (StrategyAwardEntity strategyAward : strategyAwardEntities) {
+             Integer awardId = strategyAward.getAwardId();
+-            Integer awardCount = strategyAward.getAwardCount();
++            Integer awardCount = strategyAward.getAwardCountSurplus();
+             cacheStrategyAwardCount(strategyId, awardId, awardCount);
+         }
+ 
+diff --git a/big-market-infrastructure/src/main/java/cn/bugstack/infrastructure/persistent/dao/IRaffleActivityAccountDao.java b/big-market-infrastructure/src/main/java/cn/bugstack/infrastructure/persistent/dao/IRaffleActivityAccountDao.java
+index 61c8f17..b425c24 100644
+--- a/big-market-infrastructure/src/main/java/cn/bugstack/infrastructure/persistent/dao/IRaffleActivityAccountDao.java
++++ b/big-market-infrastructure/src/main/java/cn/bugstack/infrastructure/persistent/dao/IRaffleActivityAccountDao.java
+@@ -1,6 +1,7 @@
+ package cn.bugstack.infrastructure.persistent.dao;
+ 
+ import cn.bugstack.infrastructure.persistent.po.RaffleActivityAccount;
++import cn.bugstack.middleware.db.router.annotation.DBRouter;
+ import org.apache.ibatis.annotations.Mapper;
+ 
+ /**
+@@ -15,4 +16,13 @@ public interface IRaffleActivityAccountDao {
+ 
+     int updateAccountQuota(RaffleActivityAccount raffleActivityAccount);
+ 
++    @DBRouter
++    RaffleActivityAccount queryActivityAccountByUserId(RaffleActivityAccount raffleActivityAccountReq);
++
++    int updateActivityAccountSubtractionQuota(RaffleActivityAccount raffleActivityAccount);
++
++    void updateActivityAccountMonthSurplusImageQuota(RaffleActivityAccount raffleActivityAccount);
++
++    void updateActivityAccountDaySurplusImageQuota(RaffleActivityAccount raffleActivityAccount);
++
+ }
+diff --git a/big-market-infrastructure/src/main/java/cn/bugstack/infrastructure/persistent/dao/IRaffleActivityAccountDayDao.java b/big-market-infrastructure/src/main/java/cn/bugstack/infrastructure/persistent/dao/IRaffleActivityAccountDayDao.java
+index 0a1d6b6..be4ef56 100644
+--- a/big-market-infrastructure/src/main/java/cn/bugstack/infrastructure/persistent/dao/IRaffleActivityAccountDayDao.java
++++ b/big-market-infrastructure/src/main/java/cn/bugstack/infrastructure/persistent/dao/IRaffleActivityAccountDayDao.java
+@@ -1,9 +1,22 @@
+ package cn.bugstack.infrastructure.persistent.dao;
+ 
++import cn.bugstack.infrastructure.persistent.po.RaffleActivityAccountDay;
++import cn.bugstack.middleware.db.router.annotation.DBRouter;
++import org.apache.ibatis.annotations.Mapper;
++
+ /**
+  * @author Fuzhengwei bugstack.cn @小傅哥
+  * @description 抽奖活动账户表-日次数
+  * @create 2024-04-03 15:56
+  */
++@Mapper
+ public interface IRaffleActivityAccountDayDao {
++
++    @DBRouter
++    RaffleActivityAccountDay queryActivityAccountDayByUserId(RaffleActivityAccountDay raffleActivityAccountDayReq);
++
++    int updateActivityAccountDaySubtractionQuota(RaffleActivityAccountDay raffleActivityAccountDay);
++
++    void insertActivityAccountDay(RaffleActivityAccountDay raffleActivityAccountDay);
++
+ }
+diff --git a/big-market-infrastructure/src/main/java/cn/bugstack/infrastructure/persistent/dao/IRaffleActivityAccountMonthDao.java b/big-market-infrastructure/src/main/java/cn/bugstack/infrastructure/persistent/dao/IRaffleActivityAccountMonthDao.java
+index c7d9ccb..8223671 100644
+--- a/big-market-infrastructure/src/main/java/cn/bugstack/infrastructure/persistent/dao/IRaffleActivityAccountMonthDao.java
++++ b/big-market-infrastructure/src/main/java/cn/bugstack/infrastructure/persistent/dao/IRaffleActivityAccountMonthDao.java
+@@ -1,9 +1,22 @@
+ package cn.bugstack.infrastructure.persistent.dao;
+ 
++import cn.bugstack.infrastructure.persistent.po.RaffleActivityAccountMonth;
++import cn.bugstack.middleware.db.router.annotation.DBRouter;
++import org.apache.ibatis.annotations.Mapper;
++
+ /**
+  * @author Fuzhengwei bugstack.cn @小傅哥
+  * @description 抽奖活动账户表-月次数
+  * @create 2024-04-03 15:57
+  */
++@Mapper
+ public interface IRaffleActivityAccountMonthDao {
++
++    @DBRouter
++    RaffleActivityAccountMonth queryActivityAccountMonthByUserId(RaffleActivityAccountMonth raffleActivityAccountMonthReq);
++
++    int updateActivityAccountMonthSubtractionQuota(RaffleActivityAccountMonth raffleActivityAccountMonth);
++
++    void insertActivityAccountMonth(RaffleActivityAccountMonth raffleActivityAccountMonth);
++
+ }
+diff --git a/big-market-infrastructure/src/main/java/cn/bugstack/infrastructure/persistent/dao/IRaffleActivityDao.java b/big-market-infrastructure/src/main/java/cn/bugstack/infrastructure/persistent/dao/IRaffleActivityDao.java
+index 95ce2b9..c6c4d6e 100644
+--- a/big-market-infrastructure/src/main/java/cn/bugstack/infrastructure/persistent/dao/IRaffleActivityDao.java
++++ b/big-market-infrastructure/src/main/java/cn/bugstack/infrastructure/persistent/dao/IRaffleActivityDao.java
+@@ -1,6 +1,7 @@
+ package cn.bugstack.infrastructure.persistent.dao;
+ 
+ import cn.bugstack.infrastructure.persistent.po.RaffleActivity;
++import cn.bugstack.infrastructure.persistent.po.RaffleActivityAccount;
+ import org.apache.ibatis.annotations.Mapper;
+ 
+ /**
+diff --git a/big-market-infrastructure/src/main/java/cn/bugstack/infrastructure/persistent/dao/IUserRaffleOrderDao.java b/big-market-infrastructure/src/main/java/cn/bugstack/infrastructure/persistent/dao/IUserRaffleOrderDao.java
+index 18ddd35..aed143f 100644
+--- a/big-market-infrastructure/src/main/java/cn/bugstack/infrastructure/persistent/dao/IUserRaffleOrderDao.java
++++ b/big-market-infrastructure/src/main/java/cn/bugstack/infrastructure/persistent/dao/IUserRaffleOrderDao.java
+@@ -1,9 +1,22 @@
+ package cn.bugstack.infrastructure.persistent.dao;
+ 
++import cn.bugstack.infrastructure.persistent.po.UserRaffleOrder;
++import cn.bugstack.middleware.db.router.annotation.DBRouter;
++import cn.bugstack.middleware.db.router.annotation.DBRouterStrategy;
++import org.apache.ibatis.annotations.Mapper;
++
+ /**
+  * @author Fuzhengwei bugstack.cn @小傅哥
+  * @description 用户抽奖订单表
+  * @create 2024-04-03 15:57
+  */
++@Mapper
++@DBRouterStrategy(splitTable = true)
+ public interface IUserRaffleOrderDao {
++
++    void insert(UserRaffleOrder userRaffleOrder);
++
++    @DBRouter
++    UserRaffleOrder queryNoUsedRaffleOrder(UserRaffleOrder userRaffleOrderReq);
++
+ }
+diff --git a/big-market-infrastructure/src/main/java/cn/bugstack/infrastructure/persistent/po/RaffleActivityAccount.java b/big-market-infrastructure/src/main/java/cn/bugstack/infrastructure/persistent/po/RaffleActivityAccount.java
+index be263b7..217e5cc 100644
+--- a/big-market-infrastructure/src/main/java/cn/bugstack/infrastructure/persistent/po/RaffleActivityAccount.java
++++ b/big-market-infrastructure/src/main/java/cn/bugstack/infrastructure/persistent/po/RaffleActivityAccount.java
+@@ -1,6 +1,9 @@
+ package cn.bugstack.infrastructure.persistent.po;
+ 
++import lombok.AllArgsConstructor;
++import lombok.Builder;
+ import lombok.Data;
++import lombok.NoArgsConstructor;
+ 
+ import java.util.Date;
+ 
+@@ -10,6 +13,9 @@ import java.util.Date;
+  * @create 2024-03-02 13:15
+  */
+ @Data
++@Builder
++@AllArgsConstructor
++@NoArgsConstructor
+ public class RaffleActivityAccount {
+ 
+     /**
+diff --git a/big-market-infrastructure/src/main/java/cn/bugstack/infrastructure/persistent/po/RaffleActivityAccountDay.java b/big-market-infrastructure/src/main/java/cn/bugstack/infrastructure/persistent/po/RaffleActivityAccountDay.java
+index 72cc3a4..42f59b8 100644
+--- a/big-market-infrastructure/src/main/java/cn/bugstack/infrastructure/persistent/po/RaffleActivityAccountDay.java
++++ b/big-market-infrastructure/src/main/java/cn/bugstack/infrastructure/persistent/po/RaffleActivityAccountDay.java
+@@ -1,6 +1,9 @@
+ package cn.bugstack.infrastructure.persistent.po;
+ 
++import lombok.AllArgsConstructor;
++import lombok.Builder;
+ import lombok.Data;
++import lombok.NoArgsConstructor;
+ 
+ import java.util.Date;
+ 
+@@ -10,6 +13,9 @@ import java.util.Date;
+  * @create 2024-04-03 15:28
+  */
+ @Data
++@Builder
++@AllArgsConstructor
++@NoArgsConstructor
+ public class RaffleActivityAccountDay {
+ 
+     /** 自增ID */
+diff --git a/big-market-infrastructure/src/main/java/cn/bugstack/infrastructure/persistent/po/RaffleActivityAccountMonth.java b/big-market-infrastructure/src/main/java/cn/bugstack/infrastructure/persistent/po/RaffleActivityAccountMonth.java
+index bc41078..0c75de8 100644
+--- a/big-market-infrastructure/src/main/java/cn/bugstack/infrastructure/persistent/po/RaffleActivityAccountMonth.java
++++ b/big-market-infrastructure/src/main/java/cn/bugstack/infrastructure/persistent/po/RaffleActivityAccountMonth.java
+@@ -1,6 +1,9 @@
+ package cn.bugstack.infrastructure.persistent.po;
+ 
++import lombok.AllArgsConstructor;
++import lombok.Builder;
+ import lombok.Data;
++import lombok.NoArgsConstructor;
+ 
+ import java.util.Date;
+ 
+@@ -10,6 +13,9 @@ import java.util.Date;
+  * @create 2024-04-03 15:28
+  */
+ @Data
++@Builder
++@AllArgsConstructor
++@NoArgsConstructor
+ public class RaffleActivityAccountMonth {
+ 
+     /** 自增ID */
+diff --git a/big-market-infrastructure/src/main/java/cn/bugstack/infrastructure/persistent/po/UserRaffleOrder.java b/big-market-infrastructure/src/main/java/cn/bugstack/infrastructure/persistent/po/UserRaffleOrder.java
+index c262a6f..f89798c 100644
+--- a/big-market-infrastructure/src/main/java/cn/bugstack/infrastructure/persistent/po/UserRaffleOrder.java
++++ b/big-market-infrastructure/src/main/java/cn/bugstack/infrastructure/persistent/po/UserRaffleOrder.java
+@@ -1,6 +1,9 @@
+ package cn.bugstack.infrastructure.persistent.po;
+ 
++import lombok.AllArgsConstructor;
++import lombok.Builder;
+ import lombok.Data;
++import lombok.NoArgsConstructor;
+ 
+ import java.util.Date;
+ 
+@@ -10,6 +13,9 @@ import java.util.Date;
+  * @create 2024-04-03 15:30
+  */
+ @Data
++@Builder
++@AllArgsConstructor
++@NoArgsConstructor
+ public class UserRaffleOrder {
+ 
+     /** 用户ID */
+diff --git a/big-market-infrastructure/src/main/java/cn/bugstack/infrastructure/persistent/repository/ActivityRepository.java b/big-market-infrastructure/src/main/java/cn/bugstack/infrastructure/persistent/repository/ActivityRepository.java
+index b008ec5..6a235c7 100644
+--- a/big-market-infrastructure/src/main/java/cn/bugstack/infrastructure/persistent/repository/ActivityRepository.java
++++ b/big-market-infrastructure/src/main/java/cn/bugstack/infrastructure/persistent/repository/ActivityRepository.java
+@@ -1,15 +1,13 @@
+ package cn.bugstack.infrastructure.persistent.repository;
+ 
+ import cn.bugstack.domain.activity.event.ActivitySkuStockZeroMessageEvent;
+-import cn.bugstack.domain.activity.model.aggregate.CreateOrderAggregate;
+-import cn.bugstack.domain.activity.model.entity.ActivityCountEntity;
+-import cn.bugstack.domain.activity.model.entity.ActivityEntity;
+-import cn.bugstack.domain.activity.model.entity.ActivityOrderEntity;
+-import cn.bugstack.domain.activity.model.entity.ActivitySkuEntity;
++import cn.bugstack.domain.activity.model.aggregate.CreatePartakeOrderAggregate;
++import cn.bugstack.domain.activity.model.aggregate.CreateQuotaOrderAggregate;
++import cn.bugstack.domain.activity.model.entity.*;
+ import cn.bugstack.domain.activity.model.valobj.ActivitySkuStockKeyVO;
+ import cn.bugstack.domain.activity.model.valobj.ActivityStateVO;
++import cn.bugstack.domain.activity.model.valobj.UserRaffleOrderStateVO;
+ import cn.bugstack.domain.activity.repository.IActivityRepository;
+-import cn.bugstack.domain.strategy.model.valobj.StrategyAwardStockKeyVO;
+ import cn.bugstack.infrastructure.event.EventPublisher;
+ import cn.bugstack.infrastructure.persistent.dao.*;
+ import cn.bugstack.infrastructure.persistent.po.*;
+@@ -51,8 +49,14 @@ public class ActivityRepository implements IActivityRepository {
+     @Resource
+     private IRaffleActivityAccountDao raffleActivityAccountDao;
+     @Resource
++    private IRaffleActivityAccountMonthDao raffleActivityAccountMonthDao;
++    @Resource
++    private IRaffleActivityAccountDayDao raffleActivityAccountDayDao;
++    @Resource
+     private TransactionTemplate transactionTemplate;
+     @Resource
++    private IUserRaffleOrderDao userRaffleOrderDao;
++    @Resource
+     private IDBRouterStrategy dbRouter;
+     @Resource
+     private ActivitySkuStockZeroMessageEvent activitySkuStockZeroMessageEvent;
+@@ -116,7 +120,7 @@ public class ActivityRepository implements IActivityRepository {
+     }
+ 
+     @Override
+-    public void doSaveOrder(CreateOrderAggregate createOrderAggregate) {
++    public void doSaveOrder(CreateQuotaOrderAggregate createOrderAggregate) {
+         try {
+             // 订单对象
+             ActivityOrderEntity activityOrderEntity = createOrderAggregate.getActivityOrderEntity();
+@@ -236,4 +240,191 @@ public class ActivityRepository implements IActivityRepository {
+         raffleActivitySkuDao.clearActivitySkuStock(sku);
+     }
+ 
++    @Override
++    public UserRaffleOrderEntity queryNoUsedRaffleOrder(PartakeRaffleActivityEntity partakeRaffleActivityEntity) {
++        // 查询数据
++        UserRaffleOrder userRaffleOrderReq = new UserRaffleOrder();
++        userRaffleOrderReq.setUserId(partakeRaffleActivityEntity.getUserId());
++        userRaffleOrderReq.setActivityId(partakeRaffleActivityEntity.getActivityId());
++        UserRaffleOrder userRaffleOrderRes = userRaffleOrderDao.queryNoUsedRaffleOrder(userRaffleOrderReq);
++        if (null == userRaffleOrderRes) return null;
++        // 封装结果
++        UserRaffleOrderEntity userRaffleOrderEntity = new UserRaffleOrderEntity();
++        userRaffleOrderEntity.setUserId(userRaffleOrderRes.getUserId());
++        userRaffleOrderEntity.setActivityId(userRaffleOrderRes.getActivityId());
++        userRaffleOrderEntity.setActivityName(userRaffleOrderRes.getActivityName());
++        userRaffleOrderEntity.setStrategyId(userRaffleOrderRes.getStrategyId());
++        userRaffleOrderEntity.setOrderId(userRaffleOrderRes.getOrderId());
++        userRaffleOrderEntity.setOrderTime(userRaffleOrderRes.getOrderTime());
++        userRaffleOrderEntity.setOrderState(UserRaffleOrderStateVO.valueOf(userRaffleOrderRes.getOrderState()));
++        return userRaffleOrderEntity;
++    }
++
++    @Override
++    public ActivityAccountEntity queryActivityAccountByUserId(String userId, Long activityId) {
++        // 1. 查询账户
++        RaffleActivityAccount raffleActivityAccountReq = new RaffleActivityAccount();
++        raffleActivityAccountReq.setUserId(userId);
++        raffleActivityAccountReq.setActivityId(activityId);
++        RaffleActivityAccount raffleActivityAccountRes = raffleActivityAccountDao.queryActivityAccountByUserId(raffleActivityAccountReq);
++        if (null == raffleActivityAccountRes) return null;
++        // 2. 转换对象
++        return ActivityAccountEntity.builder()
++                .userId(raffleActivityAccountRes.getUserId())
++                .activityId(raffleActivityAccountRes.getActivityId())
++                .totalCount(raffleActivityAccountRes.getTotalCount())
++                .totalCountSurplus(raffleActivityAccountRes.getTotalCountSurplus())
++                .dayCount(raffleActivityAccountRes.getDayCount())
++                .dayCountSurplus(raffleActivityAccountRes.getDayCountSurplus())
++                .monthCount(raffleActivityAccountRes.getMonthCount())
++                .monthCountSurplus(raffleActivityAccountRes.getMonthCountSurplus())
++                .build();
++    }
++
++    @Override
++    public ActivityAccountMonthEntity queryActivityAccountMonthByUserId(String userId, Long activityId, String month) {
++        // 1. 查询账户
++        RaffleActivityAccountMonth raffleActivityAccountMonthReq = new RaffleActivityAccountMonth();
++        raffleActivityAccountMonthReq.setUserId(userId);
++        raffleActivityAccountMonthReq.setActivityId(activityId);
++        raffleActivityAccountMonthReq.setMonth(month);
++        RaffleActivityAccountMonth raffleActivityAccountMonthRes = raffleActivityAccountMonthDao.queryActivityAccountMonthByUserId(raffleActivityAccountMonthReq);
++        if (null == raffleActivityAccountMonthRes) return null;
++        // 2. 转换对象
++        return ActivityAccountMonthEntity.builder()
++                .userId(raffleActivityAccountMonthRes.getUserId())
++                .activityId(raffleActivityAccountMonthRes.getActivityId())
++                .month(raffleActivityAccountMonthRes.getMonth())
++                .monthCount(raffleActivityAccountMonthRes.getMonthCount())
++                .monthCountSurplus(raffleActivityAccountMonthRes.getMonthCountSurplus())
++                .build();
++    }
++
++    @Override
++    public ActivityAccountDayEntity queryActivityAccountDayByUserId(String userId, Long activityId, String day) {
++        // 1. 查询账户
++        RaffleActivityAccountDay raffleActivityAccountDayReq = new RaffleActivityAccountDay();
++        raffleActivityAccountDayReq.setUserId(userId);
++        raffleActivityAccountDayReq.setActivityId(activityId);
++        raffleActivityAccountDayReq.setDay(day);
++        RaffleActivityAccountDay raffleActivityAccountDayRes = raffleActivityAccountDayDao.queryActivityAccountDayByUserId(raffleActivityAccountDayReq);
++        if (null == raffleActivityAccountDayRes) return null;
++        // 2. 转换对象
++        return ActivityAccountDayEntity.builder()
++                .userId(raffleActivityAccountDayRes.getUserId())
++                .activityId(raffleActivityAccountDayRes.getActivityId())
++                .day(raffleActivityAccountDayRes.getDay())
++                .dayCount(raffleActivityAccountDayRes.getDayCount())
++                .dayCountSurplus(raffleActivityAccountDayRes.getDayCountSurplus())
++                .build();
++    }
++
++    @Override
++    public void saveCreatePartakeOrderAggregate(CreatePartakeOrderAggregate createPartakeOrderAggregate) {
++        try {
++            String userId = createPartakeOrderAggregate.getUserId();
++            Long activityId = createPartakeOrderAggregate.getActivityId();
++            ActivityAccountEntity activityAccountEntity = createPartakeOrderAggregate.getActivityAccountEntity();
++            ActivityAccountMonthEntity activityAccountMonthEntity = createPartakeOrderAggregate.getActivityAccountMonthEntity();
++            ActivityAccountDayEntity activityAccountDayEntity = createPartakeOrderAggregate.getActivityAccountDayEntity();
++            UserRaffleOrderEntity userRaffleOrderEntity = createPartakeOrderAggregate.getUserRaffleOrderEntity();
++
++            // 统一切换路由，以下事务内的所有操作，都走一个路由
++            dbRouter.doRouter(userId);
++            transactionTemplate.execute(status -> {
++                try {
++                    // 1. 更新总账户
++                    int totalCount = raffleActivityAccountDao.updateActivityAccountSubtractionQuota(
++                            RaffleActivityAccount.builder()
++                                    .userId(userId)
++                                    .activityId(activityId)
++                                    .build());
++                    if (1 != totalCount) {
++                        status.setRollbackOnly();
++                        log.warn("写入创建参与活动记录，更新总账户额度不足，异常 userId: {} activityId: {}", userId, activityId);
++                        throw new AppException(ResponseCode.ACCOUNT_QUOTA_ERROR.getCode(), ResponseCode.ACCOUNT_QUOTA_ERROR.getInfo());
++                    }
++
++                    // 2. 创建或更新月账户，true - 存在则更新，false - 不存在则插入
++                    if (createPartakeOrderAggregate.isExistAccountMonth()) {
++                        int updateMonthCount = raffleActivityAccountMonthDao.updateActivityAccountMonthSubtractionQuota(
++                                RaffleActivityAccountMonth.builder()
++                                        .userId(userId)
++                                        .activityId(activityId)
++                                        .month(activityAccountMonthEntity.getMonth())
++                                        .build());
++                        if (1 != updateMonthCount) {
++                            // 未更新成功则回滚
++                            status.setRollbackOnly();
++                            log.warn("写入创建参与活动记录，更新月账户额度不足，异常 userId: {} activityId: {} month: {}", userId, activityId, activityAccountMonthEntity.getMonth());
++                            throw new AppException(ResponseCode.ACCOUNT_MONTH_QUOTA_ERROR.getCode(), ResponseCode.ACCOUNT_MONTH_QUOTA_ERROR.getInfo());
++                        }
++                    } else {
++                        raffleActivityAccountMonthDao.insertActivityAccountMonth(RaffleActivityAccountMonth.builder()
++                                .userId(activityAccountMonthEntity.getUserId())
++                                .activityId(activityAccountMonthEntity.getActivityId())
++                                .month(activityAccountMonthEntity.getMonth())
++                                .monthCount(activityAccountMonthEntity.getMonthCount())
++                                .monthCountSurplus(activityAccountMonthEntity.getMonthCountSurplus() - 1)
++                                .build());
++                        // 新创建月账户，则更新总账表中月镜像额度
++                        raffleActivityAccountDao.updateActivityAccountMonthSurplusImageQuota(RaffleActivityAccount.builder()
++                                .userId(userId)
++                                .activityId(activityId)
++                                .monthCountSurplus(activityAccountEntity.getMonthCountSurplus())
++                                .build());
++                    }
++
++                    // 3. 创建或更新日账户，true - 存在则更新，false - 不存在则插入
++                    if (createPartakeOrderAggregate.isExistAccountDay()) {
++                        int updateDayCount = raffleActivityAccountDayDao.updateActivityAccountDaySubtractionQuota(RaffleActivityAccountDay.builder()
++                                .userId(userId)
++                                .activityId(activityId)
++                                .day(activityAccountDayEntity.getDay())
++                                .build());
++                        if (1 != updateDayCount) {
++                            // 未更新成功则回滚
++                            status.setRollbackOnly();
++                            log.warn("写入创建参与活动记录，更新日账户额度不足，异常 userId: {} activityId: {} day: {}", userId, activityId, activityAccountDayEntity.getDay());
++                            throw new AppException(ResponseCode.ACCOUNT_DAY_QUOTA_ERROR.getCode(), ResponseCode.ACCOUNT_DAY_QUOTA_ERROR.getInfo());
++                        }
++                    } else {
++                        raffleActivityAccountDayDao.insertActivityAccountDay(RaffleActivityAccountDay.builder()
++                                .userId(activityAccountDayEntity.getUserId())
++                                .activityId(activityAccountDayEntity.getActivityId())
++                                .day(activityAccountDayEntity.getDay())
++                                .dayCount(activityAccountDayEntity.getDayCount())
++                                .dayCountSurplus(activityAccountDayEntity.getDayCountSurplus() - 1)
++                                .build());
++                        // 新创建日账户，则更新总账表中日镜像额度
++                        raffleActivityAccountDao.updateActivityAccountDaySurplusImageQuota(RaffleActivityAccount.builder()
++                                .userId(userId)
++                                .activityId(activityId)
++                                .dayCountSurplus(activityAccountEntity.getDayCountSurplus())
++                                .build());
++                    }
++
++                    // 4. 写入参与活动订单
++                    userRaffleOrderDao.insert(UserRaffleOrder.builder()
++                            .userId(userRaffleOrderEntity.getUserId())
++                            .activityId(userRaffleOrderEntity.getActivityId())
++                            .activityName(userRaffleOrderEntity.getActivityName())
++                            .strategyId(userRaffleOrderEntity.getStrategyId())
++                            .orderId(userRaffleOrderEntity.getOrderId())
++                            .orderTime(userRaffleOrderEntity.getOrderTime())
++                            .orderState(userRaffleOrderEntity.getOrderState().getCode())
++                            .build());
++
++                    return 1;
++                } catch (DuplicateKeyException e) {
++                    status.setRollbackOnly();
++                    log.error("写入创建参与活动记录，唯一索引冲突 userId: {} activityId: {}", userId, activityId, e);
++                    throw new AppException(ResponseCode.INDEX_DUP.getCode(), e);
++                }
++            });
++        } finally {
++            dbRouter.clear();
++        }
++    }
++
+ }
+diff --git a/big-market-trigger/src/main/java/cn/bugstack/trigger/job/UpdateActivitySkuStockJob.java b/big-market-trigger/src/main/java/cn/bugstack/trigger/job/UpdateActivitySkuStockJob.java
+index 77c22d1..7827b7b 100644
+--- a/big-market-trigger/src/main/java/cn/bugstack/trigger/job/UpdateActivitySkuStockJob.java
++++ b/big-market-trigger/src/main/java/cn/bugstack/trigger/job/UpdateActivitySkuStockJob.java
+@@ -1,7 +1,7 @@
+ package cn.bugstack.trigger.job;
+ 
+ import cn.bugstack.domain.activity.model.valobj.ActivitySkuStockKeyVO;
+-import cn.bugstack.domain.activity.service.ISkuStock;
++import cn.bugstack.domain.activity.service.IRaffleActivitySkuStockService;
+ import lombok.extern.slf4j.Slf4j;
+ import org.springframework.scheduling.annotation.Scheduled;
+ import org.springframework.stereotype.Component;
+@@ -18,7 +18,7 @@ import javax.annotation.Resource;
+ public class UpdateActivitySkuStockJob {
+ 
+     @Resource
+-    private ISkuStock skuStock;
++    private IRaffleActivitySkuStockService skuStock;
+ 
+     @Scheduled(cron = "0/5 * * * * ?")
+     public void exec() {
+diff --git a/big-market-trigger/src/main/java/cn/bugstack/trigger/listener/ActivitySkuStockZeroCustomer.java b/big-market-trigger/src/main/java/cn/bugstack/trigger/listener/ActivitySkuStockZeroCustomer.java
+index 264bfa0..32e913c 100644
+--- a/big-market-trigger/src/main/java/cn/bugstack/trigger/listener/ActivitySkuStockZeroCustomer.java
++++ b/big-market-trigger/src/main/java/cn/bugstack/trigger/listener/ActivitySkuStockZeroCustomer.java
+@@ -1,6 +1,6 @@
+ package cn.bugstack.trigger.listener;
+ 
+-import cn.bugstack.domain.activity.service.ISkuStock;
++import cn.bugstack.domain.activity.service.IRaffleActivitySkuStockService;
+ import cn.bugstack.types.event.BaseEvent;
+ import com.alibaba.fastjson2.JSON;
+ import com.alibaba.fastjson2.TypeReference;
+@@ -25,7 +25,7 @@ public class ActivitySkuStockZeroCustomer {
+     private String topic;
+ 
+     @Resource
+-    private ISkuStock skuStock;
++    private IRaffleActivitySkuStockService skuStock;
+ 
+     @RabbitListener(queuesToDeclare = @Queue(value = "activity_sku_stock_zero"))
+     public void listener(String message) {
+diff --git a/big-market-types/src/main/java/cn/bugstack/types/enums/ResponseCode.java b/big-market-types/src/main/java/cn/bugstack/types/enums/ResponseCode.java
+index 3a4e374..f687b6d 100644
+--- a/big-market-types/src/main/java/cn/bugstack/types/enums/ResponseCode.java
++++ b/big-market-types/src/main/java/cn/bugstack/types/enums/ResponseCode.java
+@@ -18,6 +18,9 @@ public enum ResponseCode {
+     ACTIVITY_STATE_ERROR("ERR_BIZ_003", "活动未开启（非open状态）"),
+     ACTIVITY_DATE_ERROR("ERR_BIZ_004", "非活动日期范围"),
+     ACTIVITY_SKU_STOCK_ERROR("ERR_BIZ_005", "活动库存不足"),
++    ACCOUNT_QUOTA_ERROR("ERR_BIZ_006","账户总额度不足"),
++    ACCOUNT_MONTH_QUOTA_ERROR("ERR_BIZ_007","账户月额度不足"),
++    ACCOUNT_DAY_QUOTA_ERROR("ERR_BIZ_008","账户日额度不足"),
+     ;
+ 
+     private String code;

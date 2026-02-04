@@ -1,0 +1,22 @@
+commit 51639edfb12ee9e397149cd9f98e1fdceecd16f6
+Author: 小傅哥 <184172133@qq.com>
+Date:   Mon Apr 29 09:28:49 2024 +0800
+
+    fix：back 单词修改 black
+
+diff --git a/big-market-domain/src/main/java/cn/bugstack/domain/strategy/service/rule/chain/impl/BackListLogicChain.java b/big-market-domain/src/main/java/cn/bugstack/domain/strategy/service/rule/chain/impl/BlackListLogicChain.java
+similarity index 97%
+rename from big-market-domain/src/main/java/cn/bugstack/domain/strategy/service/rule/chain/impl/BackListLogicChain.java
+rename to big-market-domain/src/main/java/cn/bugstack/domain/strategy/service/rule/chain/impl/BlackListLogicChain.java
+index 52e2002..2db5080 100644
+--- a/big-market-domain/src/main/java/cn/bugstack/domain/strategy/service/rule/chain/impl/BackListLogicChain.java
++++ b/big-market-domain/src/main/java/cn/bugstack/domain/strategy/service/rule/chain/impl/BlackListLogicChain.java
+@@ -19,7 +19,7 @@ import javax.annotation.Resource;
+ @Slf4j
+ @Component("rule_blacklist")
+ @Scope(ConfigurableBeanFactory.SCOPE_PROTOTYPE)
+-public class BackListLogicChain extends AbstractLogicChain {
++public class BlackListLogicChain extends AbstractLogicChain {
+ 
+     @Resource
+     private IStrategyRepository repository;

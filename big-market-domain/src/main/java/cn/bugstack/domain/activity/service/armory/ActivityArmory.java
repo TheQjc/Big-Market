@@ -46,6 +46,8 @@ public class ActivityArmory implements IActivityArmory, IActivityDispatch {
         ActivitySkuEntity activitySkuEntity = activityRepository.queryActivitySku(sku);
         cacheActivitySkuStockCount(sku, activitySkuEntity.getStockCountSurplus());
 
+        // 这里提前查询一次 目的就是为了提前将数据放入缓存（第一次查询如果没有查到就会放入缓存）
+
         // 预热活动【查询时预热到缓存】
         activityRepository.queryRaffleActivityByActivityId(activitySkuEntity.getActivityId());
 
